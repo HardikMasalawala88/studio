@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -224,7 +225,6 @@ export function CaseForm({ initialData }: CaseFormProps) {
                         {advocates.map(adv => (
                             <SelectItem key={adv.id} value={adv.id}>{adv.name}</SelectItem>
                         ))}
-                        {advocates.length === 0 && <SelectItem value="" disabled>No advocates available</SelectItem>}
                         </SelectContent>
                     </Select>
                     {user?.role === USER_ROLES.ADVOCATE && <FormDescription>You are assigned as the advocate.</FormDescription>}
@@ -252,7 +252,6 @@ export function CaseForm({ initialData }: CaseFormProps) {
                         {clients.map(cli => (
                             <SelectItem key={cli.id} value={cli.id}>{cli.name}</SelectItem>
                         ))}
-                        {clients.length === 0 && <SelectItem value="" disabled>No clients available</SelectItem>}
                         </SelectContent>
                     </Select>
                     {user?.role === USER_ROLES.CLIENT && <FormDescription>This case is for you.</FormDescription>}
@@ -274,3 +273,5 @@ export function CaseForm({ initialData }: CaseFormProps) {
     </Form>
   );
 }
+
+    
