@@ -48,12 +48,12 @@ export default function LandingPage() {
                 </div>
               </div>
               <Image
-                src="https://placehold.co/600x400.png"
+                src="https://placehold.co/600x600.png"
                 width="600"
-                height="400"
+                height="600"
                 alt="Hero"
-                className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last lg:aspect-square shadow-lg"
-                data-ai-hint="legal technology interface"
+                className="mx-auto overflow-hidden rounded-xl object-cover sm:w-full lg:order-last lg:aspect-square shadow-lg"
+                data-ai-hint="legal justice"
               />
             </div>
           </div>
@@ -107,7 +107,7 @@ export default function LandingPage() {
       </main>
 
       <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
-        <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} {APP_NAME}. All rights reserved.</p>
+        <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} {APP_NAME}. All Rights Reserved. Powered by MountainsDriven Pvt.Ltd.</p>
         <nav className="sm:ml-auto flex gap-4 sm:gap-6">
           <Link href="#" className="text-xs hover:underline underline-offset-4 text-muted-foreground">
             Terms of Service
