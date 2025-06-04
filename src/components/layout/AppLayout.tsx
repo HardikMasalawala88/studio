@@ -23,9 +23,10 @@ export function AppLayout({ children, allowedRoles }: AppLayoutProps) {
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <AuthGuard allowedRoles={allowedRoles}>
         <SidebarProvider defaultOpen>
-          <Header /> {/* Header is part of SidebarProvider to access useSidebar for mobile toggle */}
+          {/* <Header /> Header is part of SidebarProvider to access useSidebar for mobile toggle */}
           <div className="flex min-h-[calc(100vh-4rem)]"> {/* 4rem is approx h-16 */}
             <Sidebar collapsible="icon" variant="sidebar" side="left">
+              <Header />
               <SidebarNav />
               <SidebarRail /> {/* Added SidebarRail component */}
             </Sidebar>
