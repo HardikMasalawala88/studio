@@ -1,14 +1,15 @@
+
 "use server";
 import type { AuthUser, UserFormValues } from './types';
 import { USER_ROLES, UserRole } from './constants';
 
-// This MOCK_USERS list should be consistent with the one in AuthContext for demo purposes.
+// This MOCK_USERS_DB list should be consistent with the one in AuthContext for demo purposes.
 // In a real app, this would be a single source of truth (Firestore).
 let MOCK_USERS_DB: AuthUser[] = [
-  { uid: 'advocate1', firstName: 'Alice', lastName: 'Advocate', email: 'advocate@example.com', role: USER_ROLES.ADVOCATE, phone: '1234567890', createdOn: new Date('2023-01-15') },
+  { uid: 'advocate1', firstName: 'Alice', lastName: 'Advocate', email: 'advocate@example.com', role: USER_ROLES.ADVOCATE, phone: '1234567890', createdOn: new Date('2023-01-15'), advocateEnrollmentNumber: 'MAH/123/2000' },
   { uid: 'client1', firstName: 'Bob', lastName: 'Client', email: 'client@example.com', role: USER_ROLES.CLIENT, phone: '0987654321', createdOn: new Date('2023-02-20') },
   { uid: 'admin1', firstName: 'Eve', lastName: 'Admin', email: 'admin@example.com', role: USER_ROLES.SUPER_ADMIN, phone: '1122334455', createdOn: new Date('2023-01-01') },
-  { uid: 'advocate-other', firstName: 'Charles', lastName: 'Xavier', email: 'cx@example.com', role: USER_ROLES.ADVOCATE, createdOn: new Date('2023-03-10') },
+  { uid: 'advocate-other', firstName: 'Charles', lastName: 'Xavier', email: 'cx@example.com', role: USER_ROLES.ADVOCATE, createdOn: new Date('2023-03-10'), advocateEnrollmentNumber: 'DEL/456/2010' },
   { uid: 'client-acme', firstName: 'Acme Rep', lastName: 'Corp', email: 'acme@example.com', role: USER_ROLES.CLIENT, createdOn: new Date('2023-04-05') },
 ];
 
@@ -36,6 +37,17 @@ export async function createUser(userData: UserFormValues): Promise<AuthUser> {
     phone: userData.phone,
     createdOn: new Date(),
   };
+
+  if (userData.role === USER_ROLES.ADVOCATE) {
+    if (!userData.advocateEnrollmentNumber) {
+        // This should ideally be caught by form validation before calling createUser
+        throw new Error("Advocate enrolment certificate number is required for advocates.");
+    }
+    newUser.advocateEnrollmentNumber = userData.advocateEnrollmentNumber;
+    // Simulate verification log during user creation by admin/system
+    console.log(`[UserService] Creating Advocate: ${newUser.firstName} ${newUser.lastName} with Enrollment No: ${newUser.advocateEnrollmentNumber}. Verification would occur here.`);
+  }
+
   MOCK_USERS_DB.push(newUser);
   return newUser;
 }
@@ -48,7 +60,18 @@ export async function updateUser(uid: string, userData: Partial<UserFormValues>)
     if (userData.email && userData.email !== MOCK_USERS_DB[userIndex].email && MOCK_USERS_DB.some(u => u.email === userData.email && u.uid !== uid)) {
         throw new Error("Another user with this email already exists.");
     }
-    MOCK_USERS_DB[userIndex] = { ...MOCK_USERS_DB[userIndex], ...userData } as AuthUser;
+    
+    const updatedUser = { ...MOCK_USERS_DB[userIndex], ...userData } as AuthUser;
+
+    if (userData.role === USER_ROLES.ADVOCATE && !userData.advocateEnrollmentNumber) {
+      // If role is Advocate but no number is provided in update (e.g. admin forgot), retain existing or handle as error
+      // For now, if not provided in `userData`, it won't overwrite an existing one.
+      // If explicitly set to empty string, it would clear it.
+    } else if (userData.role !== USER_ROLES.ADVOCATE) {
+        delete updatedUser.advocateEnrollmentNumber; // Remove if role is not Advocate
+    }
+    
+    MOCK_USERS_DB[userIndex] = updatedUser;
     return MOCK_USERS_DB[userIndex];
   }
   return undefined;

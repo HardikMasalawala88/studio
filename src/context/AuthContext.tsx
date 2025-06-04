@@ -1,3 +1,4 @@
+
 "use client";
 
 import type React from 'react';
@@ -10,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 
 // Mocked User Data (replace with actual API calls)
 const MOCK_USERS: AuthUser[] = [
-  { uid: 'advocate1', firstName: 'Alice', lastName: 'Advocate', email: 'advocate@example.com', role: USER_ROLES.ADVOCATE, phone: '1234567890' },
+  { uid: 'advocate1', firstName: 'Alice', lastName: 'Advocate', email: 'advocate@example.com', role: USER_ROLES.ADVOCATE, phone: '1234567890', advocateEnrollmentNumber: 'MAH/123/2000' },
   { uid: 'client1', firstName: 'Bob', lastName: 'Client', email: 'client@example.com', role: USER_ROLES.CLIENT, phone: '0987654321' },
   { uid: 'admin1', firstName: 'Eve', lastName: 'Admin', email: 'admin@example.com', role: USER_ROLES.SUPER_ADMIN, phone: '1122334455' },
 ];
@@ -19,7 +20,7 @@ interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password?: string) => Promise<void>; // Password optional for mock
-  signup: (values: Pick<UserFormValues, 'firstName' | 'lastName' | 'email' | 'password' | 'role'>) => Promise<void>;
+  signup: (values: Pick<UserFormValues, 'firstName' | 'lastName' | 'email' | 'password' | 'role' | 'advocateEnrollmentNumber'>) => Promise<void>;
   logout: () => Promise<void>;
   updateUserRole: (uid: string, newRole: UserRole) => Promise<void>; // For admin
 }
@@ -67,23 +68,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, [router, toast]);
 
-  const signup = useCallback(async (values: Pick<UserFormValues, 'firstName' | 'lastName' | 'email' | 'password' | 'role'>) => {
+  const signup = useCallback(async (values: Pick<UserFormValues, 'firstName' | 'lastName' | 'email' | 'password' | 'role' | 'advocateEnrollmentNumber'>) => {
     setLoading(true);
     await new Promise(resolve => setTimeout(resolve, 500));
+    
     if (MOCK_USERS.find(u => u.email === values.email)) {
       toast({ title: "Signup Failed", description: "Email already exists.", variant: "destructive" });
       setLoading(false);
       return;
     }
+
     const newUser: AuthUser = {
       uid: `new-${Date.now()}`,
       firstName: values.firstName,
       lastName: values.lastName,
       email: values.email,
-      role: values.role || USER_ROLES.CLIENT, // Default to client
+      role: values.role || USER_ROLES.CLIENT, 
       createdOn: new Date(),
     };
-    MOCK_USERS.push(newUser); // Add to mock users list
+
+    if (values.role === USER_ROLES.ADVOCATE) {
+      if (!values.advocateEnrollmentNumber) { // This should be caught by form validation, but as a safeguard
+        toast({ title: "Signup Failed", description: "Advocate enrolment certificate number is required for advocates.", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+      // Simulate verification of name and enrollment number
+      console.log(`[AuthContext] Verifying Advocate: ${values.firstName} ${values.lastName} with Enrollment No: ${values.advocateEnrollmentNumber}`);
+      // For mock purposes, we assume verification passes. In a real app, this would be an API call.
+      newUser.advocateEnrollmentNumber = values.advocateEnrollmentNumber;
+    }
+    
+    MOCK_USERS.push(newUser); 
     setUser(newUser);
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
     toast({ title: "Signup Successful", description: `Welcome, ${newUser.firstName}!` });
@@ -103,11 +119,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router, toast]);
 
   const updateUserRole = useCallback(async (uid: string, newRole: UserRole) => {
-    // This is a mock function for admin to update roles
     const userIndex = MOCK_USERS.findIndex(u => u.uid === uid);
     if (userIndex !== -1) {
       MOCK_USERS[userIndex].role = newRole;
-      if (user?.uid === uid) { // If current user's role is changed
+      // If changing to Advocate, ideally we'd ask for enrollment number, but this is out of scope for current request.
+      // If changing *from* Advocate, clear enrollment number.
+      if (newRole !== USER_ROLES.ADVOCATE) {
+        delete MOCK_USERS[userIndex].advocateEnrollmentNumber;
+      }
+      if (user?.uid === uid) { 
         const updatedCurrentUser = { ...MOCK_USERS[userIndex] };
         setUser(updatedCurrentUser);
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedCurrentUser));

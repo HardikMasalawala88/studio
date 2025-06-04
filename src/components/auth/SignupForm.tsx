@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,9 +29,28 @@ const formSchema = z.object({
   password: z.string().min(8, { message: "Password must be at least 8 characters." }),
   confirmPassword: z.string(),
   role: z.nativeEnum(USER_ROLES).default(USER_ROLES.CLIENT),
+  advocateEnrollmentNumber: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
+}).superRefine((data, ctx) => {
+  if (data.role === USER_ROLES.ADVOCATE) {
+    if (!data.advocateEnrollmentNumber || data.advocateEnrollmentNumber.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Advocate enrolment certificate number is required.",
+        path: ["advocateEnrollmentNumber"],
+      });
+    }
+    // Add more specific validation for the number format if needed, e.g.,
+    // if (!/^[A-Z]{3}\/\d{4}\/\d{4}$/.test(data.advocateEnrollmentNumber)) {
+    //   ctx.addIssue({
+    //     code: z.ZodIssueCode.custom,
+    //     message: "Invalid enrolment number format. Expected format: ABC/1234/5678",
+    //     path: ["advocateEnrollmentNumber"],
+    //   });
+    // }
+  }
 });
 
 export function SignupForm() {
@@ -45,8 +65,11 @@ export function SignupForm() {
       password: "",
       confirmPassword: "",
       role: USER_ROLES.CLIENT,
+      advocateEnrollmentNumber: "",
     },
   });
+
+  const roleWatcher = form.watch("role");
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     await signup(values);
@@ -149,6 +172,21 @@ export function SignupForm() {
                 </FormItem>
               )}
             />
+            {roleWatcher === USER_ROLES.ADVOCATE && (
+              <FormField
+                control={form.control}
+                name="advocateEnrollmentNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Advocate Enrolment Certificate Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., MAH/1234/2023" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign Up

@@ -1,3 +1,4 @@
+
 import type { UserRole, CaseStatus } from './constants';
 
 export interface AuthUser {
@@ -8,6 +9,7 @@ export interface AuthUser {
   role: UserRole;
   phone?: string;
   createdOn?: Date; // Firestore timestamp will be converted to Date
+  advocateEnrollmentNumber?: string; // For advocates
 }
 
 export interface Note {
@@ -62,4 +64,5 @@ export type UserFormValues = {
   phone?: string;
   role: UserRole;
   password?: string; // Only for new user creation or password change
+  advocateEnrollmentNumber?: string; // For advocates
 };
