@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getCases, deleteCase as deleteCaseService } from "@/lib/caseService";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { PlusCircle, Edit, Trash2, Eye, Search, Filter } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Eye, Search, Filter, Briefcase } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_CASE_STATUSES, CASE_STATUSES, USER_ROLES } from "@/lib/constants";
