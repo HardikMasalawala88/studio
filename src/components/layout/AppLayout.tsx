@@ -9,6 +9,7 @@ import {
   Sidebar,
   SidebarInset,
   SidebarTrigger,
+  SidebarRail, // Added import
 } from '@/components/ui/sidebar';
 import type { UserRole } from '@/lib/constants';
 
@@ -26,6 +27,7 @@ export function AppLayout({ children, allowedRoles }: AppLayoutProps) {
           <div className="flex min-h-[calc(100vh-4rem)]"> {/* 4rem is approx h-16 */}
             <Sidebar collapsible="icon" variant="sidebar" side="left">
               <SidebarNav />
+              <SidebarRail /> {/* Added SidebarRail component */}
             </Sidebar>
             <SidebarInset>
               <main className="flex-1 p-4 md:p-6 lg:p-8">
