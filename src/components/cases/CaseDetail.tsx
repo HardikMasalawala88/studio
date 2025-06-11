@@ -1,7 +1,7 @@
 "use client";
 
 import type { Case, CaseDocument, Note } from "@/lib/types";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react"; // Added React import
 import { getCaseById } from "@/lib/caseService";
 import { useParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -189,3 +189,4 @@ function InfoCard({ icon, title, value }: InfoCardProps) {
         </Card>
     );
 }
+
