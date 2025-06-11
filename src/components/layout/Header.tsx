@@ -30,9 +30,9 @@ export function Header() {
     if (!firstName || !lastName) return "U";
     return `${firstName[0]}${lastName[0]}`.toUpperCase();
   };
-
+  //<header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-40 w-full border-b">
       <div className="container flex h-16 items-center">
         {isMobile && user && (
            <Button variant="ghost" size="icon" onClick={toggleSidebar} className="mr-2 md:hidden">

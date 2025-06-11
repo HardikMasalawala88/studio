@@ -91,6 +91,24 @@ let MOCK_CASES: Case[] = [
     ],
     createdOn: new Date(today.setDate(today.getDate() - 1)), // Created yesterday
   },
+   // --- Sample Cases for Today (for advocate1) ---
+  {
+    caseId: 'case-today-001',
+    title: 'Urgent Flight Hearing - Leo Lanister',
+    description: 'Seeking an urgent Flight against unauthorized access of intellectual property.',
+    hearingDate: todayAt(9, 30),
+    status: CASE_STATUSES.UPCOMING,
+    advocateId: 'advocate1',
+    advocateName: 'Alice Advocate',
+    clientId: 'client-leo',
+    clientName: 'Leo Lanister',
+    documents: [{ name: 'EvidenceBundle.pdf', url: '#', uploadedAt: new Date() }],
+    notes: [
+        { message: 'Client call confirmed urgency.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(8,0) },
+        { message: 'Drafted Flight application.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(8,45) },
+    ],
+    createdOn: new Date(today.setDate(today.getDate() - 1)), // Created yesterday
+  },
   {
     caseId: 'case-today-002',
     title: 'Bail Application - Sara Star',
