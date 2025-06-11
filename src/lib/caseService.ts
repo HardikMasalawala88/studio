@@ -1,7 +1,8 @@
 
 "use server";
 import type { Case, CaseFormValues, Note, CaseDocument } from './types';
-import { CASE_STATUSES, USER_ROLES } from './constants';
+import { CASE_STATUSES, USER_ROLES, type UserRole } from './constants';
+import { getUsers, getUserById } from './userService'; // Import user service functions
 
 const today = new Date();
 const todayAt = (hours: number, minutes: number = 0): Date => {
@@ -73,7 +74,6 @@ let MOCK_CASES: Case[] = [
     notes: [{ message: 'Agreement reached and signed by both parties.', by: 'advocate1', byName: 'Alice Advocate', at: new Date() }],
     createdOn: new Date('2023-09-01T14:00:00Z'),
   },
-  // --- Sample Cases for Today (for advocate1) ---
   {
     caseId: 'case-today-001',
     title: 'Urgent Injunction Hearing - Leo Lanister',
@@ -89,7 +89,7 @@ let MOCK_CASES: Case[] = [
         { message: 'Client call confirmed urgency.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(8,0) },
         { message: 'Drafted injunction application.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(8,45) },
     ],
-    createdOn: new Date(today.setDate(today.getDate() - 1)), // Created yesterday
+    createdOn: new Date(new Date().setDate(new Date().getDate() - 1)),
   },
    // --- Sample Cases for Today (for advocate1) ---
   {
@@ -124,7 +124,7 @@ let MOCK_CASES: Case[] = [
         { message: 'Reviewed police report.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(9,0) },
         { message: 'Prepared arguments for bail.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(10,15) },
     ],
-    createdOn: new Date(today.setDate(today.getDate() - 2)), // Created two days ago
+    createdOn: new Date(new Date().setDate(new Date().getDate() - 2)),
   },
   {
     caseId: 'case-today-003',
@@ -141,7 +141,7 @@ let MOCK_CASES: Case[] = [
         { message: 'All evidence submitted.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(10,0) },
         { message: 'Final review of arguments completed.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(14,0) },
     ],
-    createdOn: new Date(today.setDate(today.getDate() - 30)), // Created a month ago
+    createdOn: new Date(new Date().setDate(new Date().getDate() - 30)),
   },
   {
     caseId: 'case-today-004-other-advocate',
@@ -149,18 +149,18 @@ let MOCK_CASES: Case[] = [
     description: 'Attending arbitration for Gamma Corp.',
     hearingDate: todayAt(10, 0),
     status: CASE_STATUSES.UPCOMING,
-    advocateId: 'advocate-other', // Not Alice
+    advocateId: 'advocate-other', 
     advocateName: 'Charles Xavier',
     clientId: 'client-gamma',
     clientName: 'Gamma Corp CEO',
     documents: [],
     notes: [{ message: 'Prepared for arbitration.', by: 'advocate-other', byName: 'Charles Xavier', at: new Date() }],
-    createdOn: new Date(today.setDate(today.getDate() - 5)),
+    createdOn: new Date(new Date().setDate(new Date().getDate() - 5)),
   },
 ];
 
 export async function getCases(userId: string, userRole: UserRole): Promise<Case[]> {
-  await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 500)); 
   if (userRole === USER_ROLES.SUPER_ADMIN) {
     return MOCK_CASES;
   }
@@ -180,15 +180,17 @@ export async function getCaseById(caseId: string): Promise<Case | undefined> {
 
 export async function createCase(caseData: CaseFormValues, advocateId: string, clientId: string): Promise<Case> {
   await new Promise(resolve => setTimeout(resolve, 700));
-  const advocate = MOCK_USERS.find(u => u.uid === advocateId);
-  const client = MOCK_USERS.find(u => u.uid === clientId);
+  
+  const advocateUser = await getUserById(advocateId);
+  const clientUser = await getUserById(clientId);
+
   const newCase: Case = {
     ...caseData,
     caseId: `case-${Date.now()}`,
     advocateId,
     clientId,
-    advocateName: advocate ? `${advocate.firstName} ${advocate.lastName}` : "Unknown Advocate",
-    clientName: client ? `${client.firstName} ${client.lastName}` : "Unknown Client",
+    advocateName: advocateUser ? `${advocateUser.firstName} ${advocateUser.lastName}` : "Unknown Advocate",
+    clientName: clientUser ? `${clientUser.firstName} ${clientUser.lastName}` : "Unknown Client",
     documents: [],
     notes: [],
     createdOn: new Date(),
@@ -201,19 +203,22 @@ export async function updateCase(caseId: string, caseData: Partial<CaseFormValue
   await new Promise(resolve => setTimeout(resolve, 700));
   const caseIndex = MOCK_CASES.findIndex(c => c.caseId === caseId);
   if (caseIndex > -1) {
-    MOCK_CASES[caseIndex] = { ...MOCK_CASES[caseIndex], ...caseData } as Case;
-     // If hearingDate is a string, convert it
+    const currentCase = MOCK_CASES[caseIndex];
+    MOCK_CASES[caseIndex] = { ...currentCase, ...caseData } as Case;
+    
     if (typeof caseData.hearingDate === 'string') {
         MOCK_CASES[caseIndex].hearingDate = new Date(caseData.hearingDate);
+    } else if (caseData.hearingDate) {
+        MOCK_CASES[caseIndex].hearingDate = caseData.hearingDate;
     }
-    // Update advocate/client names if IDs changed (though IDs changing is less common in an update)
-    if (caseData.advocateId && caseData.advocateId !== MOCK_CASES[caseIndex].advocateId) {
-        const advocate = MOCK_USERS.find(u => u.uid === caseData.advocateId);
-        MOCK_CASES[caseIndex].advocateName = advocate ? `${advocate.firstName} ${advocate.lastName}` : "Unknown Advocate";
+
+    if (caseData.advocateId && caseData.advocateId !== currentCase.advocateId) {
+        const advocateUser = await getUserById(caseData.advocateId);
+        MOCK_CASES[caseIndex].advocateName = advocateUser ? `${advocateUser.firstName} ${advocateUser.lastName}` : "Unknown Advocate";
     }
-    if (caseData.clientId && caseData.clientId !== MOCK_CASES[caseIndex].clientId) {
-        const client = MOCK_USERS.find(u => u.uid === caseData.clientId);
-        MOCK_CASES[caseIndex].clientName = client ? `${client.firstName} ${client.lastName}` : "Unknown Client";
+    if (caseData.clientId && caseData.clientId !== currentCase.clientId) {
+        const clientUser = await getUserById(caseData.clientId);
+        MOCK_CASES[caseIndex].clientName = clientUser ? `${clientUser.firstName} ${clientUser.lastName}` : "Unknown Client";
     }
     return MOCK_CASES[caseIndex];
   }
@@ -258,30 +263,23 @@ export async function getDailyHearings(advocateId: string, date: Date): Promise<
 
   return MOCK_CASES.filter(c => 
     c.advocateId === advocateId &&
-    c.hearingDate >= queryDateStart &&
-    c.hearingDate <= queryDateEnd &&
+    new Date(c.hearingDate) >= queryDateStart &&
+    new Date(c.hearingDate) <= queryDateEnd &&
     c.status === CASE_STATUSES.UPCOMING
-  ).sort((a,b) => a.hearingDate.getTime() - b.hearingDate.getTime());
+  ).sort((a,b) => new Date(a.hearingDate).getTime() - new Date(b.hearingDate).getTime());
 }
 
-// Utility to get mock users for dropdowns (replace with actual user service)
 export async function getMockAdvocates() {
-    return MOCK_USERS.filter(u => u.role === USER_ROLES.ADVOCATE).map(u => ({ id: u.uid, name: `${u.firstName} ${u.lastName}` }));
+    const allUsers = await getUsers();
+    return allUsers
+        .filter(u => u.role === USER_ROLES.ADVOCATE)
+        .map(u => ({ id: u.uid, name: `${u.firstName} ${u.lastName}` }));
 }
 export async function getMockClients() {
-    return MOCK_USERS.filter(u => u.role === USER_ROLES.CLIENT).map(u => ({ id: u.uid, name: `${u.firstName} ${u.lastName}` }));
+    const allUsers = await getUsers();
+    return allUsers
+        .filter(u => u.role === USER_ROLES.CLIENT)
+        .map(u => ({ id: u.uid, name: `${u.firstName} ${u.lastName}` }));
 }
 
-// This should be in userService.ts, but for simplicity of mock data, it's here.
-const MOCK_USERS = [
-  { uid: 'advocate1', firstName: 'Alice', lastName: 'Advocate', email: 'advocate@example.com', role: USER_ROLES.ADVOCATE, advocateEnrollmentNumber: 'MAH/123/2000' },
-  { uid: 'client1', firstName: 'Bob', lastName: 'Client', email: 'client@example.com', role: USER_ROLES.CLIENT },
-  { uid: 'advocate-other', firstName: 'Charles', lastName: 'Xavier', email: 'cx@example.com', role: USER_ROLES.ADVOCATE, advocateEnrollmentNumber: 'DEL/456/2010' },
-  { uid: 'client-acme', firstName: 'Acme Rep', lastName: 'Corp', email: 'acme@example.com', role: USER_ROLES.CLIENT },
-  { uid: 'client-family', firstName: 'Jane', lastName: 'Family', email: 'family@example.com', role: USER_ROLES.CLIENT },
-  { uid: 'client-leo', firstName: 'Leo', lastName: 'Lanister', email: 'leo@example.com', role: USER_ROLES.CLIENT },
-  { uid: 'client-sara', firstName: 'Sara', lastName: 'Star', email: 'sara@example.com', role: USER_ROLES.CLIENT },
-  { uid: 'client-mike', firstName: 'Mike', lastName: 'Mason', email: 'mike@example.com', role: USER_ROLES.CLIENT },
-  { uid: 'client-gamma', firstName: 'Gamma CEO', lastName: '', email: 'gamma@example.com', role: USER_ROLES.CLIENT },
-];
-
+    
