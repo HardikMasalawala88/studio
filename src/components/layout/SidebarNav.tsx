@@ -1,11 +1,15 @@
 "use client";
 
 import Link from 'next/link';
+import { Moon, Sun, Menu } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Home, Briefcase, Users, FileText, UserCircle, Settings, LogOut, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { USER_ROLES, UserRole } from '@/lib/constants';
 import { useAuth } from '@/context/AuthContext';
+import { useSidebar } from '@/components/ui/sidebar'; // Ensure this hook is available or correctly imported
 import {
   SidebarMenu,
   SidebarMenuItem,
@@ -35,9 +39,13 @@ const navItems: NavItem[] = [
 ];
 
 export function SidebarNav() {
+  const { setTheme, theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { toggleSidebar, isMobile } = useSidebar(); // Assuming useSidebar provides toggleSidebar and isMobile
 
+  useEffect(() => setMounted(true), []);
   if (!user) return null;
 
   const userRole = user.role;
@@ -75,6 +83,30 @@ export function SidebarNav() {
                 </Link>
               </SidebarMenuItem>
             ))}
+            {mounted && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                variant="default"
+                size="default"
+                tooltip={{ children: theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode', side: 'right' }}
+                className="w-full justify-start"
+                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                aria-label="Toggle theme"
+              >
+                {theme === 'light' ? (
+                  <>
+                    <Moon className="mr-2 h-4 w-4" />
+                    <span>Dark Mode</span>
+                  </>
+                ) : (
+                  <>
+                    <Sun className="mr-2 h-4 w-4" />
+                    <span>Light Mode</span>
+                  </>
+                )}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            )}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>

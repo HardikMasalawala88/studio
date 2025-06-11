@@ -108,3 +108,19 @@ body {
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background-color: white !important; /* Ensure background is white for print */
+    color: black !important; /* Ensure text is black for print */
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-table { /* If you still want to use Tailwind's print:table */
+    display: table !important;
+  }
+  /* Add any other global print styles here */
+}

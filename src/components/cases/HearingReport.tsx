@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -10,9 +11,11 @@ import { format } from "date-fns";
 import { APP_NAME } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 
 export function HearingReport() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [hearings, setHearings] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
   const reportRef = useRef<HTMLDivElement>(null);
@@ -33,46 +36,77 @@ export function HearingReport() {
   }, [user]);
 
   const handlePrint = () => {
-    const printContents = reportRef.current?.innerHTML;
-    const originalContents = document.body.innerHTML;
-    
-    if (printContents) {
-      // Temporarily replace body content with report content for printing
-      document.body.innerHTML = `
-        <html>
-          <head>
-            <title>Daily Hearing Report - ${format(today, "PPP")}</title>
-            <style>
-              body { font-family: 'Inter', sans-serif; margin: 20px; color: #333; }
-              @media print {
-                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                .no-print { display: none !important; }
-                table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                th { background-color: #f2f2f2; }
-                h1, h2 { color: #333; }
-                .print-header { text-align: center; margin-bottom: 20px; }
-                .print-logo { height: 40px; margin-bottom: 10px; } /* Adjust as needed */
-              }
-            </style>
-          </head>
-          <body>
-            <div class="print-header">
-              <!-- You can add a logo here if you have one -->
-              <!-- <img src="/logo-print.png" alt="${APP_NAME} Logo" class="print-logo" /> -->
-              <h1>${APP_NAME}</h1>
-              <h2>Daily Hearing Report</h2>
-              <p>Date: ${format(today, "PPP")}</p>
-              <p>Advocate: ${user?.firstName} ${user?.lastName}</p>
-            </div>
-            ${printContents}
-          </body>
-        </html>
-      `;
-      window.print();
-      document.body.innerHTML = originalContents; // Restore original content
-      window.location.reload(); // Reload to reapply JS and styles
+    if (!reportRef.current || !user) {
+      toast({ title: "Error", description: "Cannot initiate print. Report data or user context is missing.", variant: "destructive" });
+      return;
     }
+
+    const tableNode = reportRef.current.querySelector('.printable-report-table');
+    if (!tableNode) {
+      toast({ title: "Error", description: "Printable content not found.", variant: "destructive" });
+      return;
+    }
+    const printContents = tableNode.outerHTML;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const frameDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!frameDoc) {
+      toast({ title: "Error", description: "Could not create print frame.", variant: "destructive" });
+      document.body.removeChild(iframe);
+      return;
+    }
+
+    frameDoc.open();
+    frameDoc.write(`
+      <html>
+        <head>
+          <title>Daily Hearing Report - ${format(today, "PPP")}</title>
+          <style>
+            body { font-family: 'Inter', Arial, sans-serif; margin: 20px; color: #333333; }
+            table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 10pt; }
+            th, td { border: 1px solid #dddddd; padding: 8px; text-align: left; word-break: break-word; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            h1, h2, p { margin: 0 0 10px 0; }
+            .print-header { text-align: center; margin-bottom: 20px; }
+            ul { padding-left: 20px; margin: 0; }
+            li { margin-bottom: 4px; }
+          </style>
+        </head>
+        <body>
+          <div class="print-header">
+            <h1>${APP_NAME}</h1>
+            <h2>Daily Hearing Report</h2>
+            <p>Date: ${format(today, "PPP")}</p>
+            <p>Advocate: ${user.firstName} ${user.lastName}</p>
+          </div>
+          ${printContents}
+        </body>
+      </html>
+    `);
+    frameDoc.close();
+
+    // Delay slightly to ensure content is rendered in iframe before printing
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus(); // Required for some browsers
+        iframe.contentWindow?.print();
+      } catch (e) {
+        console.error("Print error:", e);
+        toast({ title: "Print Failed", description: "An error occurred while trying to print.", variant: "destructive"});
+      } finally {
+        // Clean up iframe after print dialog is closed or error occurs
+        // Some browsers might need a longer delay for cleanup, or onafterprint event if supported universally.
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000); 
+      }
+    }, 250);
   };
   
   if (loading) {
@@ -99,7 +133,7 @@ export function HearingReport() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center no-print">
          <h2 className="text-xl font-semibold">Today&apos;s Hearings - {format(today, "PPP")}</h2>
         <Button onClick={handlePrint} disabled={hearings.length === 0}>
           <Printer className="mr-2 h-4 w-4" /> Print Report
@@ -107,7 +141,7 @@ export function HearingReport() {
       </div>
 
       {hearings.length === 0 ? (
-        <Card>
+        <Card className="no-print">
           <CardContent className="pt-6 text-center">
             <CalendarDays className="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 className="mt-2 text-xl font-semibold">No Hearings Today</h3>
@@ -118,9 +152,8 @@ export function HearingReport() {
         </Card>
       ) : (
         <div ref={reportRef}>
-          {/* This table structure is primarily for the print view.
-              The web view uses Cards for better responsiveness and UI. */}
-          <table className="hidden print:table w-full"> {/* Hidden by default, shown only for print */}
+          {/* This table structure is primarily for the print view. */}
+          <table className="hidden print:table w-full printable-report-table"> {/* Hidden by default, shown for print via CSS or direct selection */}
             <thead>
               <tr>
                 <th>Time</th>
@@ -138,14 +171,20 @@ export function HearingReport() {
                   <td>{hearing.clientName}</td>
                   <td>{hearing.status}</td>
                   <td>
-                    {hearing.notes.slice(-2).map(note => note.message).join('; ') || 'N/A'}
+                    {hearing.notes.length > 0 ? (
+                        <ul>
+                        {hearing.notes.slice(-2).map((note, index) => (
+                            <li key={index}>{note.message}</li>
+                        ))}
+                        </ul>
+                    ) : 'N/A'}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          {/* Web view using Cards */}
+          {/* Web view using Cards - this should be hidden during print by .no-print class */}
           <div className="space-y-4 no-print">
             {hearings.map((hearing) => (
               <Card key={hearing.caseId}>
