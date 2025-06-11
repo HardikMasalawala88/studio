@@ -107,6 +107,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
       } else {
         const newCase = await createCase(values, values.advocateId, values.clientId);
         toast({ title: "Case Created", description: "The new case has been successfully created." });
+        //router.push(`/case/${newCase.caseId}`);
         router.push('/cases'); // Redirect to cases list page
       }
     } catch (error) {
