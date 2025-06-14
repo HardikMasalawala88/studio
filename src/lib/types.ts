@@ -10,6 +10,7 @@ export interface AuthUser {
   phone?: string;
   createdOn?: Date;
   advocateEnrollmentNumber?: string;
+  isActive?: boolean; // Added for client/user status
 }
 
 export interface Note {
@@ -65,6 +66,7 @@ export type CaseFormValues = {
   clientId: string; 
 };
 
+// UserFormValues now includes isActive, also used by ClientForm implicitly/explicitly
 export type UserFormValues = {
   firstName: string;
   lastName: string;
@@ -73,6 +75,7 @@ export type UserFormValues = {
   role: UserRole;
   password?: string; 
   advocateEnrollmentNumber?: string; 
+  isActive?: boolean;
 };
 
 export type HearingUpdateFormValues = {
@@ -81,3 +84,7 @@ export type HearingUpdateFormValues = {
   nextHearingDate?: Date;
   nextHearingStatus?: CaseStatus;
 };
+
+// Specific type for ClientForm, role is fixed.
+export type ClientFormValues = Omit<UserFormValues, 'role' | 'advocateEnrollmentNumber'>;
+

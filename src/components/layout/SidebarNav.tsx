@@ -1,7 +1,8 @@
+
 "use client";
 
 import Link from 'next/link';
-import { Moon, Sun, Menu } from 'lucide-react';
+import { Moon, Sun, Menu, Users2 } from 'lucide-react'; // Added Users2 for Clients icon
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
@@ -31,6 +32,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: Home, roles: [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.SUPER_ADMIN] },
   { href: '/cases', label: 'Cases', icon: Briefcase, roles: [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.SUPER_ADMIN] },
+  { href: '/clients', label: 'Clients', icon: Users2, roles: [USER_ROLES.ADVOCATE] }, // New Client Management Link
   { href: '/daily-report', label: 'Daily Report', icon: FileText, roles: [USER_ROLES.ADVOCATE] },
   { href: '/admin/users', label: 'User Management', icon: Users, roles: [USER_ROLES.SUPER_ADMIN] },
   // Add more general items like profile or settings if needed

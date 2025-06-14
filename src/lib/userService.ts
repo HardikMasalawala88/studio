@@ -6,11 +6,12 @@ import { USER_ROLES, UserRole } from './constants';
 // This MOCK_USERS_DB list should be consistent with the one in AuthContext for demo purposes.
 // In a real app, this would be a single source of truth (Firestore).
 let MOCK_USERS_DB: AuthUser[] = [
-  { uid: 'advocate1', firstName: 'Alice', lastName: 'Advocate', email: 'advocate@example.com', role: USER_ROLES.ADVOCATE, phone: '1234567890', createdOn: new Date('2023-01-15'), advocateEnrollmentNumber: 'MAH/123/2000' },
-  { uid: 'client1', firstName: 'Bob', lastName: 'Client', email: 'client@example.com', role: USER_ROLES.CLIENT, phone: '0987654321', createdOn: new Date('2023-02-20') },
-  { uid: 'admin1', firstName: 'Eve', lastName: 'Admin', email: 'admin@example.com', role: USER_ROLES.SUPER_ADMIN, phone: '1122334455', createdOn: new Date('2023-01-01') },
-  { uid: 'advocate-other', firstName: 'Charles', lastName: 'Xavier', email: 'cx@example.com', role: USER_ROLES.ADVOCATE, createdOn: new Date('2023-03-10'), advocateEnrollmentNumber: 'DEL/456/2010' },
-  { uid: 'client-acme', firstName: 'Acme Rep', lastName: 'Corp', email: 'acme@example.com', role: USER_ROLES.CLIENT, createdOn: new Date('2023-04-05') },
+  { uid: 'advocate1', firstName: 'Alice', lastName: 'Advocate', email: 'advocate@example.com', role: USER_ROLES.ADVOCATE, phone: '1234567890', createdOn: new Date('2023-01-15'), advocateEnrollmentNumber: 'MAH/123/2000', isActive: true },
+  { uid: 'client1', firstName: 'Bob', lastName: 'Client', email: 'client@example.com', role: USER_ROLES.CLIENT, phone: '0987654321', createdOn: new Date('2023-02-20'), isActive: true },
+  { uid: 'admin1', firstName: 'Eve', lastName: 'Admin', email: 'admin@example.com', role: USER_ROLES.SUPER_ADMIN, phone: '1122334455', createdOn: new Date('2023-01-01'), isActive: true },
+  { uid: 'advocate-other', firstName: 'Charles', lastName: 'Xavier', email: 'cx@example.com', role: USER_ROLES.ADVOCATE, createdOn: new Date('2023-03-10'), advocateEnrollmentNumber: 'DEL/456/2010', isActive: true },
+  { uid: 'client-acme', firstName: 'Acme Rep', lastName: 'Corp', email: 'acme@example.com', role: USER_ROLES.CLIENT, createdOn: new Date('2023-04-05'), isActive: true },
+  { uid: 'client-inactive', firstName: 'Inactive', lastName: 'User', email: 'inactive@example.com', role: USER_ROLES.CLIENT, createdOn: new Date('2023-05-01'), isActive: false },
 ];
 
 export async function getUsers(): Promise<AuthUser[]> {
@@ -36,6 +37,7 @@ export async function createUser(userData: UserFormValues): Promise<AuthUser> {
     role: userData.role,
     phone: userData.phone,
     createdOn: new Date(),
+    isActive: userData.isActive === undefined ? true : userData.isActive, // Default to true if not specified
   };
 
   if (userData.role === USER_ROLES.ADVOCATE) {
@@ -66,8 +68,7 @@ export async function updateUser(uid: string, userData: Partial<UserFormValues>)
     if (userData.role === USER_ROLES.ADVOCATE && !userData.advocateEnrollmentNumber) {
       // If role is Advocate but no number is provided in update (e.g. admin forgot), retain existing or handle as error
       // For now, if not provided in `userData`, it won't overwrite an existing one.
-      // If explicitly set to empty string, it would clear it.
-    } else if (userData.role !== USER_ROLES.ADVOCATE) {
+    } else if (userData.role && userData.role !== USER_ROLES.ADVOCATE) { // if role is changed to non-advocate
         delete updatedUser.advocateEnrollmentNumber; // Remove if role is not Advocate
     }
     
@@ -82,6 +83,26 @@ export async function deleteUser(uid: string): Promise<boolean> {
   const initialLength = MOCK_USERS_DB.length;
   MOCK_USERS_DB = MOCK_USERS_DB.filter(u => u.uid !== uid);
   return MOCK_USERS_DB.length < initialLength;
+}
+
+export async function activateUser(uid: string): Promise<AuthUser | undefined> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const userIndex = MOCK_USERS_DB.findIndex(u => u.uid === uid);
+    if (userIndex > -1) {
+        MOCK_USERS_DB[userIndex].isActive = true;
+        return MOCK_USERS_DB[userIndex];
+    }
+    return undefined;
+}
+
+export async function deactivateUser(uid: string): Promise<AuthUser | undefined> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const userIndex = MOCK_USERS_DB.findIndex(u => u.uid === uid);
+    if (userIndex > -1) {
+        MOCK_USERS_DB[userIndex].isActive = false;
+        return MOCK_USERS_DB[userIndex];
+    }
+    return undefined;
 }
 
 export async function getAssignableRoles(): Promise<UserRole[]> {
