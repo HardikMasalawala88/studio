@@ -220,7 +220,7 @@ interface FeatureCardProps {
 
 function FeatureCard({ icon, title, description }: FeatureCardProps) {
   return (
-    <Card className="h-full flex flex-col transition-all hover:shadow-lg hover:border-primary/50">
+    <Card className="h-full flex flex-col transition-all duration-300 hover:shadow-lg hover:border-primary/50">
       <CardHeader className="items-start">
          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary p-0">
            {icon}
@@ -335,4 +335,3 @@ function PricingCard({ plan, isFeatured = false }: PricingCardProps) {
     </Card>
   );
 }
-
