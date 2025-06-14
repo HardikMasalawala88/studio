@@ -1,5 +1,5 @@
 
-import type { UserRole, CaseStatus } from './constants';
+import type { UserRole, CaseStatus, SubscriptionPlanId } from './constants';
 
 export interface AuthUser {
   uid: string;
@@ -10,14 +10,23 @@ export interface AuthUser {
   phone?: string;
   createdOn?: Date;
   advocateEnrollmentNumber?: string;
-  isActive?: boolean; // Added for client/user status
+  isActive?: boolean;
+
+  // Subscription related fields for Advocates
+  subscriptionPlanId?: SubscriptionPlanId;
+  subscriptionExpiryDate?: Date;
+  // Mock payment details
+  lastPaymentDate?: Date;
+  lastPaymentAmount?: number;
+  lastPaymentCurrency?: 'INR';
+  lastPaymentTransactionId?: string; // Placeholder for PhonePe transaction ID
 }
 
 export interface Note {
   message: string;
-  by: string; 
-  byName?: string; 
-  at: Date; 
+  by: string;
+  byName?: string;
+  at: Date;
 }
 
 export interface CaseDocument {
@@ -28,31 +37,31 @@ export interface CaseDocument {
 
 export interface HearingEntry {
   hearingDate: Date;
-  status: CaseStatus; // Status of the case *after* this hearing or as set for this hearing
-  notes?: string; // Notes specific to this hearing's outcome
-  updatedBy: string; // UID of the advocate who updated this entry
-  updatedByName: string; // Name of the advocate
-  updatedAt: Date; // When this history entry was made
+  status: CaseStatus;
+  notes?: string;
+  updatedBy: string;
+  updatedByName: string;
+  updatedAt: Date;
 }
 
 export interface Case {
   caseId: string;
   title: string;
   description: string;
-  hearingDate: Date; // Represents the *next* scheduled hearing date
-  status: CaseStatus; // Represents the *current overall* status of the case
+  hearingDate: Date;
+  status: CaseStatus;
   advocateId: string;
-  advocateName?: string; 
+  advocateName?: string;
   clientId: string;
-  clientName?: string; 
+  clientName?: string;
   documents: CaseDocument[];
-  notes: Note[]; // General case notes, not specific to a single hearing outcome
-  hearingHistory: HearingEntry[]; // Chronological record of hearings
-  createdOn: Date; 
+  notes: Note[];
+  hearingHistory: HearingEntry[];
+  createdOn: Date;
 }
 
 export interface DailyHearing {
-  date: Date; 
+  date: Date;
   advocateId: string;
   caseIds: string[];
 }
@@ -62,20 +71,20 @@ export type CaseFormValues = {
   description: string;
   hearingDate: Date;
   status: CaseStatus;
-  advocateId: string; 
-  clientId: string; 
+  advocateId: string;
+  clientId: string;
 };
 
-// UserFormValues now includes isActive, also used by ClientForm implicitly/explicitly
 export type UserFormValues = {
   firstName: string;
   lastName: string;
   email: string;
   phone?: string;
   role: UserRole;
-  password?: string; 
-  advocateEnrollmentNumber?: string; 
+  password?: string;
+  advocateEnrollmentNumber?: string;
   isActive?: boolean;
+  confirmIndiaAdvocate?: boolean; // Added for signup
 };
 
 export type HearingUpdateFormValues = {
@@ -85,6 +94,13 @@ export type HearingUpdateFormValues = {
   nextHearingStatus?: CaseStatus;
 };
 
-// Specific type for ClientForm, role is fixed.
-export type ClientFormValues = Omit<UserFormValues, 'role' | 'advocateEnrollmentNumber'>;
+export type ClientFormValues = Omit<UserFormValues, 'role' | 'advocateEnrollmentNumber' | 'confirmIndiaAdvocate'>;
 
+export interface SubscriptionPlan {
+  id: SubscriptionPlanId;
+  name: string;
+  priceINR: number;
+  durationMonths: number; // 0 for free trial, otherwise months
+  description: string;
+  isTrial?: boolean;
+}

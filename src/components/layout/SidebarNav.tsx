@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { Moon, Sun, Menu, Users2 } from 'lucide-react'; // Added Users2 for Clients icon
+import { Moon, Sun, Menu, Users2, CreditCard } from 'lucide-react'; // Added CreditCard for Subscription
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
@@ -10,7 +10,7 @@ import { Home, Briefcase, Users, FileText, UserCircle, Settings, LogOut, ShieldC
 import { cn } from '@/lib/utils';
 import { USER_ROLES, UserRole } from '@/lib/constants';
 import { useAuth } from '@/context/AuthContext';
-import { useSidebar } from '@/components/ui/sidebar'; // Ensure this hook is available or correctly imported
+import { useSidebar } from '@/components/ui/sidebar';
 import {
   SidebarMenu,
   SidebarMenuItem,
@@ -20,37 +20,74 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupLabel
-} from '@/components/ui/sidebar'; // Assuming these are correctly exported from your sidebar UI component
+} from '@/components/ui/sidebar';
+import { formatDistanceToNowStrict, isBefore, addDays } from 'date-fns';
+
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
   roles: UserRole[];
+  tag?: string; // For subscription status
+  tagVariant?: 'default' | 'warning' | 'destructive';
 }
-
-const navItems: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: Home, roles: [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.SUPER_ADMIN] },
-  { href: '/cases', label: 'Cases', icon: Briefcase, roles: [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.SUPER_ADMIN] },
-  { href: '/clients', label: 'Clients', icon: Users2, roles: [USER_ROLES.ADVOCATE] }, // New Client Management Link
-  { href: '/daily-report', label: 'Daily Report', icon: FileText, roles: [USER_ROLES.ADVOCATE] },
-  { href: '/admin/users', label: 'User Management', icon: Users, roles: [USER_ROLES.SUPER_ADMIN] },
-  // Add more general items like profile or settings if needed
-  // { href: '/profile', label: 'Profile', icon: UserCircle, roles: [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.SUPER_ADMIN] },
-  // { href: '/settings', label: 'Settings', icon: Settings, roles: [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.SUPER_ADMIN] },
-];
 
 export function SidebarNav() {
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
-  const { user, logout } = useAuth();
-  const { toggleSidebar, isMobile } = useSidebar(); // Assuming useSidebar provides toggleSidebar and isMobile
+  const { user, logout, isSubscriptionActive } = useAuth();
+  const { toggleSidebar, isMobile } = useSidebar();
 
   useEffect(() => setMounted(true), []);
   if (!user) return null;
 
   const userRole = user.role;
+  
+  let subscriptionTag: NavItem['tag'] | undefined;
+  let subscriptionTagVariant: NavItem['tagVariant'] | undefined;
+
+  if (userRole === USER_ROLES.ADVOCATE) {
+    if (user.subscriptionPlanId === 'free_trial_1m' && user.subscriptionExpiryDate) {
+      if (isSubscriptionActive) {
+        const daysLeft = formatDistanceToNowStrict(new Date(user.subscriptionExpiryDate), { unit: 'day' });
+        subscriptionTag = `Trial (${daysLeft})`;
+        if (isBefore(new Date(user.subscriptionExpiryDate), addDays(new Date(), 7))) { // Less than 7 days left
+            subscriptionTagVariant = 'warning';
+        } else {
+            subscriptionTagVariant = 'default';
+        }
+      } else {
+        subscriptionTag = "Trial Expired";
+        subscriptionTagVariant = 'destructive';
+      }
+    } else if (!isSubscriptionActive && user.subscriptionExpiryDate) { // Paid plan expired
+        subscriptionTag = "Expired";
+        subscriptionTagVariant = 'destructive';
+    } else if (isSubscriptionActive && user.subscriptionExpiryDate && isBefore(new Date(user.subscriptionExpiryDate), addDays(new Date(), 7))) { // Paid plan expiring soon
+        subscriptionTag = "Expires Soon";
+        subscriptionTagVariant = 'warning';
+    }
+  }
+
+
+  const navItems: NavItem[] = [
+    { href: '/dashboard', label: 'Dashboard', icon: Home, roles: [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.SUPER_ADMIN] },
+    { href: '/cases', label: 'Cases', icon: Briefcase, roles: [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.SUPER_ADMIN] },
+    { href: '/clients', label: 'Clients', icon: Users2, roles: [USER_ROLES.ADVOCATE] },
+    { href: '/daily-report', label: 'Daily Report', icon: FileText, roles: [USER_ROLES.ADVOCATE] },
+    { 
+      href: '/subscription', 
+      label: 'Subscription', 
+      icon: CreditCard, 
+      roles: [USER_ROLES.ADVOCATE],
+      tag: subscriptionTag,
+      tagVariant: subscriptionTagVariant
+    },
+    { href: '/admin/users', label: 'User Management', icon: Users, roles: [USER_ROLES.SUPER_ADMIN] },
+  ];
+
 
   const filteredNavItems = navItems.filter(item => item.roles.includes(userRole));
 
@@ -77,10 +114,21 @@ export function SidebarNav() {
                     size="default"
                     isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
                     tooltip={{ children: item.label, side: 'right' }}
-                    className="w-full justify-start"
+                    className="w-full justify-start relative" // Added relative for badge positioning
                   >
                     <item.icon className="mr-2 h-4 w-4" />
                     <span>{item.label}</span>
+                     {item.tag && (
+                        <span className={cn(
+                            "ml-auto text-xs px-1.5 py-0.5 rounded-full group-data-[collapsible=icon]:hidden",
+                            item.tagVariant === 'destructive' && "bg-destructive text-destructive-foreground",
+                            item.tagVariant === 'warning' && "bg-yellow-500 text-black",
+                            item.tagVariant === 'default' && "bg-primary/20 text-primary-foreground",
+                            !item.tagVariant && "bg-sidebar-accent text-sidebar-accent-foreground" // Default badge style
+                        )}>
+                            {item.tag}
+                        </span>
+                    )}
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>

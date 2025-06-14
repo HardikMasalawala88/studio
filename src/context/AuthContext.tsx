@@ -3,26 +3,32 @@
 
 import type React from 'react';
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { AuthUser, UserFormValues } from '@/lib/types';
+import type { AuthUser, UserFormValues, SubscriptionPlan } from '@/lib/types';
 import type { UserRole } from '@/lib/constants';
-import { USER_ROLES } from '@/lib/constants';
+import { USER_ROLES, SUBSCRIPTION_PLAN_IDS, SUBSCRIPTION_PLANS_CONFIG } from '@/lib/constants';
 import { useRouter, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { addMonths, isAfter } from 'date-fns';
+import { 
+  updateAdvocateSubscription as serviceUpdateSubscription,
+  getUsers,
+  getUserById,
+  createUser as serviceCreateUser,
+  updateUser as serviceUpdateUser 
+} from '@/lib/userService'; 
+import { isUserSubscriptionActive as checkIsSubscriptionActive } from '@/lib/utils'; 
 
-// Mocked User Data (replace with actual API calls)
-const MOCK_USERS: AuthUser[] = [
-  { uid: 'advocate1', firstName: 'Alice', lastName: 'Advocate', email: 'advocate@example.com', role: USER_ROLES.ADVOCATE, phone: '1234567890', advocateEnrollmentNumber: 'MAH/123/2000' },
-  { uid: 'client1', firstName: 'Bob', lastName: 'Client', email: 'client@example.com', role: USER_ROLES.CLIENT, phone: '0987654321' },
-  { uid: 'admin1', firstName: 'Eve', lastName: 'Admin', email: 'admin@example.com', role: USER_ROLES.SUPER_ADMIN, phone: '1122334455' },
-];
 
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password?: string) => Promise<void>; // Password optional for mock
-  signup: (values: Pick<UserFormValues, 'firstName' | 'lastName' | 'email' | 'password' | 'role' | 'advocateEnrollmentNumber'>) => Promise<void>;
+  login: (email: string, password?: string) => Promise<void>;
+  signup: (values: UserFormValues) => Promise<void>;
   logout: () => Promise<void>;
-  updateUserRole: (uid: string, newRole: UserRole) => Promise<void>; // For admin
+  updateUserRole: (uid: string, newRole: UserRole) => Promise<void>; 
+  isSubscriptionActive: boolean;
+  refreshUser: () => Promise<void>; 
+  updateSubscription: (plan: SubscriptionPlan) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,11 +42,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { toast } = useToast();
 
+  const isSubscriptionActive = user ? checkIsSubscriptionActive(user) : false;
+
+  const refreshUser = useCallback(async () => {
+    if (user) {
+      setLoading(true);
+      const refreshedUser = await getUserById(user.uid);
+      if (refreshedUser) {
+         // Ensure date fields are Date objects after fetching
+        if (refreshedUser.subscriptionExpiryDate && typeof refreshedUser.subscriptionExpiryDate === 'string') {
+          refreshedUser.subscriptionExpiryDate = new Date(refreshedUser.subscriptionExpiryDate);
+        }
+        if (refreshedUser.lastPaymentDate && typeof refreshedUser.lastPaymentDate === 'string') {
+          refreshedUser.lastPaymentDate = new Date(refreshedUser.lastPaymentDate);
+        }
+        if (refreshedUser.createdOn && typeof refreshedUser.createdOn === 'string') {
+          refreshedUser.createdOn = new Date(refreshedUser.createdOn);
+        }
+        setUser(refreshedUser);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(refreshedUser));
+      } else {
+        // User might have been deleted or not found, clear session
+        setUser(null);
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        // Optionally: toast({ title: "Session Expired", description: "Please log in again."}); router.push('/login');
+      }
+      setLoading(false);
+    }
+  }, [user, getUserById]);
+
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem(AUTH_STORAGE_KEY);
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser.subscriptionExpiryDate) {
+          parsedUser.subscriptionExpiryDate = new Date(parsedUser.subscriptionExpiryDate);
+        }
+        if (parsedUser.lastPaymentDate) {
+          parsedUser.lastPaymentDate = new Date(parsedUser.lastPaymentDate);
+        }
+        if (parsedUser.createdOn) {
+          parsedUser.createdOn = new Date(parsedUser.createdOn);
+        }
+        setUser(parsedUser);
       }
     } catch (error) {
       console.error("Failed to load user from localStorage", error);
@@ -52,66 +97,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, _password?: string) => {
     setLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const foundUser = MOCK_USERS.find(u => u.email === email);
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(foundUser));
-      toast({ title: "Login Successful", description: `Welcome back, ${foundUser.firstName}!` });
-      router.push('/dashboard');
-    } else {
-      toast({ title: "Login Failed", description: "Invalid email or password.", variant: "destructive" });
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
+    try {
+      const allUsers = await getUsers();
+      const foundUser = allUsers.find(u => u.email === email);
+      
+      if (foundUser && foundUser.isActive) {
+        setUser(foundUser);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(foundUser));
+        toast({ title: "Login Successful", description: `Welcome back, ${foundUser.firstName}!` });
+        router.push('/dashboard');
+      } else if (foundUser && !foundUser.isActive) {
+        toast({ title: "Login Failed", description: "Your account is inactive. Please contact support.", variant: "destructive" });
+        setUser(null);
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+      } else {
+        toast({ title: "Login Failed", description: "Invalid email or password.", variant: "destructive" });
+        setUser(null);
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+      }
+    } catch (error: any) {
+      toast({ title: "Login Error", description: error.message || "An unexpected error occurred.", variant: "destructive" });
       setUser(null);
       localStorage.removeItem(AUTH_STORAGE_KEY);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [router, toast]);
 
-  const signup = useCallback(async (values: Pick<UserFormValues, 'firstName' | 'lastName' | 'email' | 'password' | 'role' | 'advocateEnrollmentNumber'>) => {
+  const signup = useCallback(async (values: UserFormValues) => {
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    if (MOCK_USERS.find(u => u.email === values.email)) {
-      toast({ title: "Signup Failed", description: "Email already exists.", variant: "destructive" });
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
+    try {
+      // serviceCreateUser will throw an error if email exists or other validation fails
+      const createdUser = await serviceCreateUser(values);
+      
+      setUser(createdUser);
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(createdUser));
+      toast({ title: "Signup Successful", description: `Welcome, ${createdUser.firstName}!` });
+      router.push('/dashboard');
+    } catch (error: any) {
+      toast({ title: "Signup Failed", description: error.message || "An unexpected error occurred.", variant: "destructive" });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const newUser: AuthUser = {
-      uid: `new-${Date.now()}`,
-      firstName: values.firstName,
-      lastName: values.lastName,
-      email: values.email,
-      role: values.role || USER_ROLES.CLIENT, 
-      createdOn: new Date(),
-    };
-
-    if (values.role === USER_ROLES.ADVOCATE) {
-      if (!values.advocateEnrollmentNumber) { // This should be caught by form validation, but as a safeguard
-        toast({ title: "Signup Failed", description: "Advocate enrolment certificate number is required for advocates.", variant: "destructive" });
-        setLoading(false);
-        return;
-      }
-      // Simulate verification of name and enrollment number
-      console.log(`[AuthContext] Verifying Advocate: ${values.firstName} ${values.lastName} with Enrollment No: ${values.advocateEnrollmentNumber}`);
-      // For mock purposes, we assume verification passes. In a real app, this would be an API call.
-      newUser.advocateEnrollmentNumber = values.advocateEnrollmentNumber;
-    }
-    
-    MOCK_USERS.push(newUser); 
-    setUser(newUser);
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
-    toast({ title: "Signup Successful", description: `Welcome, ${newUser.firstName}!` });
-    router.push('/dashboard');
-    setLoading(false);
   }, [router, toast]);
 
   const logout = useCallback(async () => {
     setLoading(true);
     setUser(null);
     localStorage.removeItem(AUTH_STORAGE_KEY);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 300));
     toast({ title: "Logged Out", description: "You have been successfully logged out." });
     router.push('/login');
@@ -119,34 +154,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router, toast]);
 
   const updateUserRole = useCallback(async (uid: string, newRole: UserRole) => {
-    const userIndex = MOCK_USERS.findIndex(u => u.uid === uid);
-    if (userIndex !== -1) {
-      MOCK_USERS[userIndex].role = newRole;
-      // If changing to Advocate, ideally we'd ask for enrollment number, but this is out of scope for current request.
-      // If changing *from* Advocate, clear enrollment number.
-      if (newRole !== USER_ROLES.ADVOCATE) {
-        delete MOCK_USERS[userIndex].advocateEnrollmentNumber;
+    setLoading(true);
+    try {
+      const updatedUserFromService = await serviceUpdateUser(uid, { role: newRole });
+
+      if (updatedUserFromService) {
+        if (user?.uid === uid) { 
+          setUser(updatedUserFromService);
+          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUserFromService));
+        }
+        toast({ title: "User Role Updated", description: `User role set to ${newRole}.` });
+        // It's good practice for the component calling this (e.g., UserList) to also refresh its own data.
+      } else {
+        toast({ title: "Update Failed", description: "User not found or update failed at service level.", variant: "destructive" });
       }
-      if (user?.uid === uid) { 
-        const updatedCurrentUser = { ...MOCK_USERS[userIndex] };
-        setUser(updatedCurrentUser);
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedCurrentUser));
+    } catch (error: any) {
+      toast({ title: "Update Error", description: error.message || "Failed to update user role.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, [user, toast]);
+
+  const updateSubscription = useCallback(async (plan: SubscriptionPlan): Promise<boolean> => {
+    if (!user || user.role !== USER_ROLES.ADVOCATE) {
+      toast({ title: "Error", description: "Only advocates can have subscriptions.", variant: "destructive" });
+      return false;
+    }
+    setLoading(true);
+    try {
+      const updatedUser = await serviceUpdateSubscription(user.uid, plan);
+      if (updatedUser) {
+        setUser(updatedUser); 
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
+        toast({ title: "Subscription Updated!", description: `You are now subscribed to ${plan.name}.` });
+        setLoading(false);
+        return true;
+      } else {
+        throw new Error("Failed to update subscription in mock service.");
       }
-      toast({ title: "User Role Updated", description: `User role set to ${newRole}.` });
-    } else {
-      toast({ title: "Update Failed", description: "User not found.", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Subscription Failed", description: error.message || "Could not update subscription.", variant: "destructive" });
+      setLoading(false);
+      return false;
     }
   }, [user, toast]);
 
 
   useEffect(() => {
-    if (!loading && !user && !['/login', '/signup', '/forgot-password', '/'].includes(pathname)) {
-       // router.push('/login');
+    if (!loading && !user && !['/login', '/signup', '/forgot-password', '/'].includes(pathname) && !pathname.startsWith('/subscription')) {
+       // router.push('/login'); // Commented out for now as it might be too aggressive during development
     }
   }, [user, loading, pathname, router]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateUserRole }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateUserRole, isSubscriptionActive, refreshUser, updateSubscription }}>
       {children}
     </AuthContext.Provider>
   );
@@ -159,3 +220,4 @@ export function useAuth() {
   }
   return context;
 }
+

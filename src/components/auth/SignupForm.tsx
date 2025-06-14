@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -18,9 +19,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/context/AuthContext";
 import { USER_ROLES, UserRole, APP_NAME } from "@/lib/constants";
 import { Loader2 } from "lucide-react";
+import type { UserFormValues } from "@/lib/types";
 
 const formSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
@@ -30,6 +33,7 @@ const formSchema = z.object({
   confirmPassword: z.string(),
   role: z.nativeEnum(USER_ROLES).default(USER_ROLES.CLIENT),
   advocateEnrollmentNumber: z.string().optional(),
+  confirmIndiaAdvocate: z.boolean().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -42,14 +46,13 @@ const formSchema = z.object({
         path: ["advocateEnrollmentNumber"],
       });
     }
-    // Add more specific validation for the number format if needed, e.g.,
-    // if (!/^[A-Z]{3}\/\d{4}\/\d{4}$/.test(data.advocateEnrollmentNumber)) {
-    //   ctx.addIssue({
-    //     code: z.ZodIssueCode.custom,
-    //     message: "Invalid enrolment number format. Expected format: ABC/1234/5678",
-    //     path: ["advocateEnrollmentNumber"],
-    //   });
-    // }
+    if (data.confirmIndiaAdvocate !== true) {
+       ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Please confirm you are an advocate practicing in India.",
+        path: ["confirmIndiaAdvocate"],
+      });
+    }
   }
 });
 
@@ -66,13 +69,19 @@ export function SignupForm() {
       confirmPassword: "",
       role: USER_ROLES.CLIENT,
       advocateEnrollmentNumber: "",
+      confirmIndiaAdvocate: false,
     },
   });
 
   const roleWatcher = form.watch("role");
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    await signup(values);
+    // Ensure UserFormValues type is passed to signup
+    const signupData: UserFormValues = {
+        ...values,
+        // isActive is true by default for new signups, handled in AuthContext/userService
+    };
+    await signup(signupData);
   }
 
   return (
@@ -173,19 +182,44 @@ export function SignupForm() {
               )}
             />
             {roleWatcher === USER_ROLES.ADVOCATE && (
-              <FormField
-                control={form.control}
-                name="advocateEnrollmentNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Advocate Enrolment Certificate Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., MAH/1234/2023" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <>
+                <FormField
+                  control={form.control}
+                  name="advocateEnrollmentNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Advocate Enrolment Certificate Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., MAH/1234/2023" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="confirmIndiaAdvocate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          I confirm that I am an advocate practicing in India and agree to the Terms of Service.
+                        </FormLabel>
+                         <FormDescription className="text-xs">
+                           Subscriptions and services are currently available for Indian advocates only.
+                        </FormDescription>
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

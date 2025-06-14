@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Case } from "@/lib/types";
@@ -6,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getCases, deleteCase as deleteCaseService } from "@/lib/caseService";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { PlusCircle, Edit, Trash2, Eye, Search, Filter, Briefcase } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Eye, Search, Filter, Briefcase, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_CASE_STATUSES, CASE_STATUSES, USER_ROLES } from "@/lib/constants";
@@ -26,15 +27,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export function CaseList() {
-  const { user } = useAuth();
+  const { user, isSubscriptionActive } = useAuth();
   const { toast } = useToast();
   const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>(""); // YYYY-MM-DD
+
+  const canManageCases = user?.role === USER_ROLES.SUPER_ADMIN || (user?.role === USER_ROLES.ADVOCATE && isSubscriptionActive);
+  const isAdvocateWithExpiredSubscription = user?.role === USER_ROLES.ADVOCATE && !isSubscriptionActive;
+
 
   useEffect(() => {
     async function loadCases() {
@@ -55,17 +61,21 @@ export function CaseList() {
       .filter(c => {
         if (!dateFilter) return true;
         try {
-          const filterDate = new Date(dateFilter + "T00:00:00"); // Ensure local timezone for date part
+          const filterDate = new Date(dateFilter + "T00:00:00"); 
           return (
             c.hearingDate.getFullYear() === filterDate.getFullYear() &&
             c.hearingDate.getMonth() === filterDate.getMonth() &&
             c.hearingDate.getDate() === filterDate.getDate()
           );
-        } catch (e) { return true; } // Invalid date string
+        } catch (e) { return true; } 
       });
   }, [cases, searchTerm, statusFilter, dateFilter]);
 
   const handleDeleteCase = async (caseId: string) => {
+    if (!canManageCases) {
+        toast({ title: "Action Denied", description: "Your subscription does not allow this action.", variant: "destructive" });
+        return;
+    }
     const success = await deleteCaseService(caseId);
     if (success) {
       setCases(prevCases => prevCases.filter(c => c.caseId !== caseId));
@@ -106,6 +116,16 @@ export function CaseList() {
 
   return (
     <div className="space-y-6">
+      {isAdvocateWithExpiredSubscription && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Subscription Expired</AlertTitle>
+          <AlertDescription>
+            Your subscription has expired. You can view and print cases, but add, edit, or delete features are disabled. 
+            Please <Link href="/subscription" className="font-medium underline">renew your subscription</Link> to regain full access.
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
         <div className="relative w-full md:max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -139,7 +159,7 @@ export function CaseList() {
           />
         </div>
         {user?.role !== USER_ROLES.CLIENT && (
-           <Button asChild className="w-full md:w-auto">
+           <Button asChild className="w-full md:w-auto" disabled={!canManageCases && user?.role === USER_ROLES.ADVOCATE}>
             <Link href="/cases/new">
               <PlusCircle className="mr-2 h-4 w-4" /> New Case
             </Link>
@@ -155,7 +175,7 @@ export function CaseList() {
             {cases.length === 0 ? "You don't have any cases yet." : "Try adjusting your search or filters."}
           </p>
           {user?.role !== USER_ROLES.CLIENT && cases.length === 0 && (
-            <Button className="mt-6" asChild>
+            <Button className="mt-6" asChild disabled={!canManageCases && user?.role === USER_ROLES.ADVOCATE}>
               <Link href="/cases/new">
                 <PlusCircle className="mr-2 h-4 w-4" /> Create Your First Case
               </Link>
@@ -192,12 +212,12 @@ export function CaseList() {
                       </Button>
                       {user?.role !== USER_ROLES.CLIENT && (
                         <>
-                          <Button variant="ghost" size="icon" asChild title="Edit Case">
+                          <Button variant="ghost" size="icon" asChild title="Edit Case" disabled={!canManageCases}>
                             <Link href={`/case/${c.caseId}/edit`}><Edit className="h-4 w-4" /></Link>
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" title="Delete Case" className="text-destructive hover:text-destructive">
+                              <Button variant="ghost" size="icon" title="Delete Case" className="text-destructive hover:text-destructive" disabled={!canManageCases}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>

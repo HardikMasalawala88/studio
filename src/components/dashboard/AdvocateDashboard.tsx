@@ -1,12 +1,16 @@
+
 "use client";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DashboardStats } from "./DashboardStats";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { PlusCircle, ListOrdered } from "lucide-react";
+import { PlusCircle, ListOrdered, AlertTriangle, CreditCard } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
+import { USER_ROLES } from "@/lib/constants";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { formatDistanceToNowStrict, isBefore, addDays, format } from 'date-fns';
 
 // Mock data, replace with actual data fetching
 const mockUpcomingHearings = [
@@ -21,8 +25,47 @@ const mockRecentActivity = [
 ];
 
 export function AdvocateDashboard() {
-  const { user } = useAuth();
-  if (!user) return null;
+  const { user, isSubscriptionActive } = useAuth();
+  if (!user || user.role !== USER_ROLES.ADVOCATE) return null;
+
+  let subscriptionAlert = null;
+  if (user.subscriptionPlanId === 'free_trial_1m' && user.subscriptionExpiryDate) {
+    if (isSubscriptionActive) {
+      const daysLeft = formatDistanceToNowStrict(new Date(user.subscriptionExpiryDate), { unit: 'day' });
+      if (isBefore(new Date(user.subscriptionExpiryDate), addDays(new Date(), 7))) {
+        subscriptionAlert = (
+          <Alert variant="default" className="bg-yellow-50 border-yellow-300 text-yellow-700">
+            <AlertTriangle className="h-4 w-4 text-yellow-500" />
+            <AlertTitle>Trial Expiring Soon!</AlertTitle>
+            <AlertDescription>
+              Your free trial ends in {daysLeft}. <Link href="/subscription" className="font-medium underline">Subscribe now</Link> to maintain full access.
+            </AlertDescription>
+          </Alert>
+        );
+      }
+    } else {
+       subscriptionAlert = (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Free Trial Expired</AlertTitle>
+          <AlertDescription>
+            Your free trial has ended. <Link href="/subscription" className="font-medium underline">Subscribe now</Link> to regain full access.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+  } else if (!isSubscriptionActive && user.subscriptionExpiryDate) {
+     subscriptionAlert = (
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Subscription Expired</AlertTitle>
+        <AlertDescription>
+          Your subscription has expired. <Link href="/subscription" className="font-medium underline">Renew now</Link> to regain full access.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
 
   return (
     <div className="space-y-6">
@@ -30,16 +73,20 @@ export function AdvocateDashboard() {
         title={`Welcome, ${user.firstName}!`}
         description="Here's an overview of your activities."
         actions={
-          <div className="flex gap-2">
-            <Button asChild>
+          <div className="flex gap-2 flex-wrap">
+            <Button asChild disabled={!isSubscriptionActive}>
               <Link href="/cases/new"><PlusCircle className="mr-2 h-4 w-4" /> New Case</Link>
             </Button>
              <Button variant="outline" asChild>
               <Link href="/daily-report"><ListOrdered className="mr-2 h-4 w-4" /> Daily Report</Link>
             </Button>
+            <Button variant="outline" asChild>
+              <Link href="/subscription"><CreditCard className="mr-2 h-4 w-4" /> Manage Subscription</Link>
+            </Button>
           </div>
         }
       />
+      {subscriptionAlert}
       <DashboardStats userRole={user.role} />
       
       <div className="grid gap-6 md:grid-cols-2">
