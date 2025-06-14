@@ -1,12 +1,17 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, Briefcase, Users, FileText, Zap, Brain, MessageSquare, Sparkles, ShieldCheck } from 'lucide-react';
+import { CheckCircle, Briefcase, Users, FileText, Zap, Brain, MessageSquare, Sparkles, ShieldCheck, Award } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { APP_NAME } from '@/lib/constants';
+import { APP_NAME, ALL_SUBSCRIPTION_PLANS } from '@/lib/constants';
+import type { SubscriptionPlan } from '@/lib/types';
 
 export default function LandingPage() {
+  const displayPlans = ALL_SUBSCRIPTION_PLANS.filter(plan => !plan.isTrial);
+  // Optionally, mark one plan as featured
+  const featuredPlanId = 'paid_6m_500inr'; 
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -99,7 +104,7 @@ export default function LandingPage() {
                 description="Quickly generate printable PDF reports for daily hearings, keeping you organized and prepared."
               />
               <FeatureCard
-                icon={<ShieldCheck className="h-8 w-8" />} // Changed icon
+                icon={<ShieldCheck className="h-8 w-8" />}
                 title="Secure Document Handling"
                 description="Upload, organize, and securely share case-related documents with version control and access logs."
               />
@@ -111,7 +116,7 @@ export default function LandingPage() {
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center mb-16">
               <div className="space-y-3">
-                 <div className="inline-block rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary font-semibold shadow-sm">The CaseConnect Advantage</div>
+                 <div className="inline-block rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary font-semibold shadow-sm">The {APP_NAME} Advantage</div>
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">Work Smarter, Not Harder</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
                   Discover how {APP_NAME} revolutionizes your workflow and client interactions.
@@ -135,6 +140,28 @@ export default function LandingPage() {
                 description="Gain a competitive edge with AI-powered summaries, case analysis, and predictive tools to inform your legal strategies."
               />
             </div>
+          </div>
+        </section>
+
+        <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-muted/30">
+          <div className="container px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center mb-16">
+              <div className="space-y-3">
+                <div className="inline-block rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary font-semibold shadow-sm">Pricing Plans</div>
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">Flexible Plans for Every Advocate</h2>
+                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                  Choose a plan that fits your practice. All paid plans include full access to AI features and dedicated support. Free 1-month trial on signup!
+                </p>
+              </div>
+            </div>
+            <div className="mx-auto grid max-w-6xl items-stretch gap-8 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {displayPlans.map((plan) => (
+                <PricingCard key={plan.id} plan={plan} isFeatured={plan.id === featuredPlanId} />
+              ))}
+            </div>
+             <p className="text-center text-sm text-muted-foreground mt-12">
+              All transactions are in INR. Services are intended for advocates practicing in India.
+            </p>
           </div>
         </section>
 
@@ -189,12 +216,68 @@ interface BenefitPointProps {
 
 function BenefitPoint({ icon, title, description }: BenefitPointProps) {
   return (
-    <div className="flex flex-col items-center text-center p-4_">
+    <div className="flex flex-col items-center text-center p-4">
       <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 p-0">
          {icon}
       </div>
       <h3 className="mb-2 text-xl font-bold font-headline">{title}</h3>
       <p className="text-muted-foreground text-sm">{description}</p>
     </div>
+  );
+}
+
+interface PricingCardProps {
+  plan: SubscriptionPlan;
+  isFeatured?: boolean;
+}
+
+function PricingCard({ plan, isFeatured = false }: PricingCardProps) {
+  const features = [
+    "Full Case Management Suite",
+    "AI-Powered Case Summaries",
+    "Intelligent Document Analysis (AI)",
+    "Client Collaboration Portal",
+    "Daily Hearing Reports & Alerts",
+    "Secure Document Storage",
+    "Role-Based Access Control",
+    "Basic Support",
+  ];
+
+  if (plan.id === 'paid_12m_800inr') {
+    features.push("Priority Support");
+  }
+
+
+  return (
+    <Card className={`flex flex-col ${isFeatured ? 'border-2 border-primary shadow-xl relative ring-2 ring-primary ring-offset-2' : 'hover:shadow-xl'} transition-all duration-300`}>
+      {isFeatured && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground shadow-lg">
+          <Award className="inline-block h-3 w-3 mr-1" /> Best Value
+        </div>
+      )}
+      <CardHeader className={`pb-4 ${isFeatured ? 'pt-8' : ''}`}>
+        <CardTitle className="font-headline text-2xl">{plan.name}</CardTitle>
+        <div className="flex items-baseline">
+          <span className="text-4xl font-bold">₹{plan.priceINR}</span>
+          <span className="ml-1 text-muted-foreground">/ {plan.durationMonths} months</span>
+        </div>
+        <CardDescription>{plan.description}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex-grow space-y-4">
+        <ul className="space-y-2 text-sm text-muted-foreground">
+          {features.map((feature, index) => (
+            <li key={index} className="flex items-center">
+              <CheckCircle className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" /> 
+              {feature}
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+      <CardFooter>
+        <Button asChild className="w-full" variant={isFeatured ? 'default' : 'outline'}>
+          <Link href="/signup">Get Started</Link>
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }
