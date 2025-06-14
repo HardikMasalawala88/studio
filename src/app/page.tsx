@@ -1,17 +1,35 @@
 
+"use client";
+
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, Briefcase, Users, FileText, Zap, Brain, MessageSquare, Sparkles, ShieldCheck, Award, Gift, Users2 } from 'lucide-react';
+import { CheckCircle, Briefcase, Users, FileText, Zap, Brain, Sparkles, ShieldCheck, Award, Gift } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { APP_NAME, ALL_SUBSCRIPTION_PLANS } from '@/lib/constants';
+import { APP_NAME, SUBSCRIPTION_PLAN_IDS } from '@/lib/constants';
 import type { SubscriptionPlan } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { getSubscriptionPlans } from '@/lib/userService'; // Fetch plans from service
+import { Skeleton } from '@/components/ui/skeleton'; // For loading state
 
 export default function LandingPage() {
-  const trialPlan = ALL_SUBSCRIPTION_PLANS.find(p => p.isTrial === true);
-  const paidPlans = ALL_SUBSCRIPTION_PLANS.filter(p => p.isTrial !== true);
-  const featuredPlanId = 'paid_6m_500inr'; // For "Best Value" highlight
+  const [allPlans, setAllPlans] = useState<SubscriptionPlan[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+
+  useEffect(() => {
+    async function fetchPlans() {
+      setLoadingPlans(true);
+      const plans = await getSubscriptionPlans();
+      setAllPlans(plans);
+      setLoadingPlans(false);
+    }
+    fetchPlans();
+  }, []);
+
+  const trialPlan = allPlans.find(p => p.isTrial === true);
+  const paidPlans = allPlans.filter(p => p.isTrial !== true);
+  const featuredPlanId = SUBSCRIPTION_PLAN_IDS.HALF_YEARLY; // For "Best Value" highlight
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -35,7 +53,7 @@ export default function LandingPage() {
       <main className="flex-1">
         <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-br from-primary/10 via-background to-accent/10">
           <div className="container px-4 md:px-6">
-            <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_500px]"> {/* Adjusted image column width */}
+            <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_500px]">
               <div className="flex flex-col justify-center space-y-6">
                 <div className="space-y-4">
                   <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline text-primary">
@@ -55,12 +73,12 @@ export default function LandingPage() {
                 </div>
               </div>
               <Image
-                src="https://placehold.co/600x400.png" // Adjusted aspect ratio
+                src="https://placehold.co/600x400.png"
                 width="600"
-                height="400" // Adjusted aspect ratio
+                height="400"
                 alt="CaseConnect platform dashboard"
                 className="mx-auto overflow-hidden rounded-xl object-cover sm:w-full lg:order-last shadow-xl"
-                data-ai-hint="legal dashboard software" // Updated hint
+                data-ai-hint="legal dashboard software"
                 priority
               />
             </div>
@@ -156,27 +174,37 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {trialPlan && (
-              <div className="flex justify-center mb-10 md:mb-12">
-                <div className="w-full max-w-md">
-                  <PricingCard
-                    key={trialPlan.id}
-                    plan={trialPlan}
-                  />
-                </div>
+            {loadingPlans ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <Skeleton className="h-[400px] w-full" />
+                <Skeleton className="h-[400px] w-full" />
+                <Skeleton className="h-[400px] w-full" />
               </div>
-            )}
+            ) : (
+              <>
+                {trialPlan && (
+                  <div className="flex justify-center mb-10 md:mb-12">
+                    <div className="w-full max-w-md">
+                      <PricingCard
+                        key={trialPlan.id}
+                        plan={trialPlan}
+                      />
+                    </div>
+                  </div>
+                )}
 
-            {paidPlans.length > 0 && (
-              <div className="mx-auto grid max-w-6xl items-stretch gap-8 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {paidPlans.map((plan) => (
-                  <PricingCard
-                    key={plan.id}
-                    plan={plan}
-                    isFeatured={plan.id === featuredPlanId}
-                  />
-                ))}
-              </div>
+                {paidPlans.length > 0 && (
+                  <div className="mx-auto grid max-w-6xl items-stretch gap-8 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                    {paidPlans.map((plan) => (
+                      <PricingCard
+                        key={plan.id}
+                        plan={plan}
+                        isFeatured={plan.id === featuredPlanId}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
              <p className="text-center text-sm text-muted-foreground mt-12">
               All transactions are in INR. Services are intended for advocates practicing in India.
@@ -216,7 +244,7 @@ function FeatureCard({ icon, title, description }: FeatureCardProps) {
     <Card className="h-full flex flex-col transition-all duration-300 hover:shadow-lg hover:border-primary/50">
       <CardHeader className="items-start">
          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary p-0">
-           {icon}
+           {React.cloneElement(icon as React.ReactElement, { className: "h-6 w-6" })}
         </div>
         <CardTitle className="font-headline text-xl">{title}</CardTitle>
       </CardHeader>
@@ -237,7 +265,7 @@ function BenefitPoint({ icon, title, description }: BenefitPointProps) {
   return (
     <div className="flex flex-col items-center text-center p-4">
       <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 p-0">
-         {icon}
+         {React.cloneElement(icon as React.ReactElement, { className: "h-8 w-8 text-primary" })}
       </div>
       <h3 className="mb-2 text-xl font-bold font-headline">{title}</h3>
       <p className="text-muted-foreground text-sm">{description}</p>
@@ -276,7 +304,7 @@ function PricingCard({ plan, isFeatured = false }: PricingCardProps) {
   let features = paidFeaturesBase;
   if (isTrialPlan) {
     features = trialFeatures;
-  } else if (plan.id === 'paid_12m_800inr') {
+  } else if (plan.id === 'paid_12m_800inr') { // Assuming this ID corresponds to the yearly plan
     features = [...paidFeaturesBase, "Priority Support"];
   }
 
@@ -329,4 +357,3 @@ function PricingCard({ plan, isFeatured = false }: PricingCardProps) {
     </Card>
   );
 }
-

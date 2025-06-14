@@ -2,11 +2,11 @@
 "use client";
 
 import Link from 'next/link';
-import { Moon, Sun, Menu, Users2, CreditCard } from 'lucide-react'; // Added CreditCard for Subscription
+import { Moon, Sun, Users2, CreditCard, Settings as SettingsIcon } from 'lucide-react'; 
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Home, Briefcase, Users, FileText, UserCircle, Settings, LogOut, ShieldCheck } from 'lucide-react';
+import { Home, Briefcase, Users, FileText, LogOut, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { USER_ROLES, UserRole } from '@/lib/constants';
 import { useAuth } from '@/context/AuthContext';
@@ -29,7 +29,7 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   roles: UserRole[];
-  tag?: string; // For subscription status
+  tag?: string; 
   tagVariant?: 'default' | 'warning' | 'destructive';
 }
 
@@ -38,7 +38,7 @@ export function SidebarNav() {
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const { user, logout, isSubscriptionActive } = useAuth();
-  const { toggleSidebar, isMobile } = useSidebar();
+  // const { toggleSidebar, isMobile } = useSidebar(); // Not used directly here anymore
 
   useEffect(() => setMounted(true), []);
   if (!user) return null;
@@ -53,7 +53,7 @@ export function SidebarNav() {
       if (isSubscriptionActive) {
         const daysLeft = formatDistanceToNowStrict(new Date(user.subscriptionExpiryDate), { unit: 'day' });
         subscriptionTag = `Trial (${daysLeft})`;
-        if (isBefore(new Date(user.subscriptionExpiryDate), addDays(new Date(), 7))) { // Less than 7 days left
+        if (isBefore(new Date(user.subscriptionExpiryDate), addDays(new Date(), 7))) { 
             subscriptionTagVariant = 'warning';
         } else {
             subscriptionTagVariant = 'default';
@@ -62,10 +62,10 @@ export function SidebarNav() {
         subscriptionTag = "Trial Expired";
         subscriptionTagVariant = 'destructive';
       }
-    } else if (!isSubscriptionActive && user.subscriptionExpiryDate) { // Paid plan expired
+    } else if (!isSubscriptionActive && user.subscriptionExpiryDate) { 
         subscriptionTag = "Expired";
         subscriptionTagVariant = 'destructive';
-    } else if (isSubscriptionActive && user.subscriptionExpiryDate && isBefore(new Date(user.subscriptionExpiryDate), addDays(new Date(), 7))) { // Paid plan expiring soon
+    } else if (isSubscriptionActive && user.subscriptionExpiryDate && isBefore(new Date(user.subscriptionExpiryDate), addDays(new Date(), 7))) { 
         subscriptionTag = "Expires Soon";
         subscriptionTagVariant = 'warning';
     }
@@ -79,13 +79,14 @@ export function SidebarNav() {
     { href: '/daily-report', label: 'Daily Report', icon: FileText, roles: [USER_ROLES.ADVOCATE] },
     { 
       href: '/subscription', 
-      label: 'Subscription', 
+      label: 'My Subscription', 
       icon: CreditCard, 
       roles: [USER_ROLES.ADVOCATE],
       tag: subscriptionTag,
       tagVariant: subscriptionTagVariant
     },
     { href: '/admin/users', label: 'User Management', icon: Users, roles: [USER_ROLES.SUPER_ADMIN] },
+    { href: '/admin/subscriptions', label: 'Subscription Settings', icon: SettingsIcon, roles: [USER_ROLES.SUPER_ADMIN] },
   ];
 
 
@@ -114,7 +115,7 @@ export function SidebarNav() {
                     size="default"
                     isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
                     tooltip={{ children: item.label, side: 'right' }}
-                    className="w-full justify-start relative" // Added relative for badge positioning
+                    className="w-full justify-start relative" 
                   >
                     <item.icon className="mr-2 h-4 w-4" />
                     <span>{item.label}</span>
@@ -123,8 +124,8 @@ export function SidebarNav() {
                             "ml-auto text-xs px-1.5 py-0.5 rounded-full group-data-[collapsible=icon]:hidden",
                             item.tagVariant === 'destructive' && "bg-destructive text-destructive-foreground",
                             item.tagVariant === 'warning' && "bg-yellow-500 text-black",
-                            item.tagVariant === 'default' && "bg-primary/20 text-primary-foreground",
-                            !item.tagVariant && "bg-sidebar-accent text-sidebar-accent-foreground" // Default badge style
+                            item.tagVariant === 'default' && "bg-primary/20 text-primary-foreground", // This was likely meant to be a different color for default badges
+                            !item.tagVariant && "bg-sidebar-accent text-sidebar-accent-foreground"
                         )}>
                             {item.tag}
                         </span>

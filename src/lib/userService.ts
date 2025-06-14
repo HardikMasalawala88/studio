@@ -1,8 +1,8 @@
 
 "use server";
 import type { AuthUser, UserFormValues, SubscriptionPlan } from './types';
-import { USER_ROLES, UserRole, SUBSCRIPTION_PLAN_IDS, SUBSCRIPTION_PLANS_CONFIG } from './constants';
-import { addMonths, isAfter } from 'date-fns';
+import { USER_ROLES, UserRole, SUBSCRIPTION_PLAN_IDS, INITIAL_SUBSCRIPTION_PLANS_CONFIG, ALL_INITIAL_SUBSCRIPTION_PLANS, type SubscriptionPlanId } from './constants';
+import { addMonths } from 'date-fns';
 
 let MOCK_USERS_DB: AuthUser[] = [
   {
@@ -18,6 +18,10 @@ let MOCK_USERS_DB: AuthUser[] = [
   { uid: 'client-acme', firstName: 'Acme Rep', lastName: 'Corp', email: 'acme@example.com', role: USER_ROLES.CLIENT, createdOn: new Date('2023-04-05'), isActive: true },
   { uid: 'client-inactive', firstName: 'Inactive', lastName: 'User', email: 'inactive@example.com', role: USER_ROLES.CLIENT, createdOn: new Date('2023-05-01'), isActive: false },
 ];
+
+// Mock database for subscription plans, initialized from constants
+let MOCK_SUBSCRIPTION_PLANS_DB: SubscriptionPlan[] = JSON.parse(JSON.stringify(ALL_INITIAL_SUBSCRIPTION_PLANS));
+
 
 export async function getUsers(): Promise<AuthUser[]> {
   await new Promise(resolve => setTimeout(resolve, 300));
@@ -53,11 +57,15 @@ export async function createUser(userData: UserFormValues): Promise<AuthUser> {
         throw new Error("Confirmation of practicing in India is required for advocates.");
     }
     newUser.advocateEnrollmentNumber = userData.advocateEnrollmentNumber;
-    // Assign free trial
-    const trialPlan = SUBSCRIPTION_PLANS_CONFIG[SUBSCRIPTION_PLAN_IDS.FREE_TRIAL];
-    newUser.subscriptionPlanId = trialPlan.id;
-    newUser.subscriptionExpiryDate = addMonths(new Date(), trialPlan.durationMonths);
-    console.log(`[UserService] Creating Advocate: ${newUser.firstName} ${newUser.lastName}. Free trial assigned, expires: ${newUser.subscriptionExpiryDate}.`);
+    
+    const trialPlan = await getSubscriptionPlanById(SUBSCRIPTION_PLAN_IDS.FREE_TRIAL);
+    if (trialPlan) {
+        newUser.subscriptionPlanId = trialPlan.id;
+        newUser.subscriptionExpiryDate = addMonths(new Date(), trialPlan.durationMonths);
+        console.log(`[UserService] Creating Advocate: ${newUser.firstName} ${newUser.lastName}. Free trial assigned, expires: ${newUser.subscriptionExpiryDate}.`);
+    } else {
+        console.warn("[UserService] Free trial plan not found during user creation.");
+    }
   }
 
   MOCK_USERS_DB.push(newUser);
@@ -75,12 +83,9 @@ export async function updateUser(uid: string, userData: Partial<UserFormValues &
     const updatedUser = { ...MOCK_USERS_DB[userIndex], ...userData } as AuthUser;
 
     if (userData.role === USER_ROLES.ADVOCATE && !userData.advocateEnrollmentNumber && !updatedUser.advocateEnrollmentNumber) {
-      // If role is Advocate but no number is provided and none exists, this is an issue.
-      // However, if one exists, userData without it shouldn't clear it unless explicitly set to empty.
       // This logic can be refined, but for now, we assume advocateEnrollmentNumber is sticky unless changed.
     } else if (userData.role && userData.role !== USER_ROLES.ADVOCATE) {
         delete updatedUser.advocateEnrollmentNumber;
-        // Also clear subscription details if no longer an advocate
         delete updatedUser.subscriptionPlanId;
         delete updatedUser.subscriptionExpiryDate;
         delete updatedUser.lastPaymentAmount;
@@ -124,11 +129,16 @@ export async function getAssignableRoles(): Promise<UserRole[]> {
     return [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.SUPER_ADMIN];
 }
 
-export async function updateAdvocateSubscription(userId: string, plan: SubscriptionPlan): Promise<AuthUser | undefined> {
-  await new Promise(resolve => setTimeout(resolve, 700)); // Simulate API call
+export async function updateAdvocateSubscription(userId: string, planId: SubscriptionPlanId): Promise<AuthUser | undefined> {
+  await new Promise(resolve => setTimeout(resolve, 700)); 
   const userIndex = MOCK_USERS_DB.findIndex(u => u.uid === userId && u.role === USER_ROLES.ADVOCATE);
   if (userIndex === -1) {
     throw new Error("Advocate not found.");
+  }
+
+  const plan = await getSubscriptionPlanById(planId);
+  if (!plan) {
+    throw new Error("Selected subscription plan not found.");
   }
 
   const newExpiryDate = addMonths(new Date(), plan.durationMonths);
@@ -140,8 +150,46 @@ export async function updateAdvocateSubscription(userId: string, plan: Subscript
     lastPaymentDate: new Date(),
     lastPaymentAmount: plan.priceINR,
     lastPaymentCurrency: 'INR',
-    lastPaymentTransactionId: `MOCK_PHONEPE_${Date.now()}` // Simulate transaction ID
+    lastPaymentTransactionId: `MOCK_PHONEPE_${Date.now()}` 
   };
   console.log(`[UserService] Subscription updated for ${MOCK_USERS_DB[userIndex].email} to ${plan.name}. Expires: ${newExpiryDate}`);
   return MOCK_USERS_DB[userIndex];
+}
+
+// --- Subscription Plan Management ---
+
+export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+  await new Promise(resolve => setTimeout(resolve, 200));
+  // Return a deep copy to prevent direct modification of the mock DB
+  return JSON.parse(JSON.stringify(MOCK_SUBSCRIPTION_PLANS_DB));
+}
+
+export async function getSubscriptionPlanById(planId: SubscriptionPlanId): Promise<SubscriptionPlan | undefined> {
+  await new Promise(resolve => setTimeout(resolve, 100));
+  const plan = MOCK_SUBSCRIPTION_PLANS_DB.find(p => p.id === planId);
+  return plan ? JSON.parse(JSON.stringify(plan)) : undefined;
+}
+
+export async function updateSubscriptionPlan(
+  planId: SubscriptionPlanId,
+  updates: { name?: string; description?: string; priceINR?: number; durationMonths?: number }
+): Promise<SubscriptionPlan | undefined> {
+  await new Promise(resolve => setTimeout(resolve, 400));
+  const planIndex = MOCK_SUBSCRIPTION_PLANS_DB.findIndex(p => p.id === planId);
+  if (planIndex > -1) {
+    // Prevent changing 'id' or 'isTrial' status via this function
+    const originalPlan = MOCK_SUBSCRIPTION_PLANS_DB[planIndex];
+    if (originalPlan.isTrial && (updates.priceINR !== undefined || updates.durationMonths !== undefined)) {
+        throw new Error("Price and duration for trial plans cannot be modified.");
+    }
+
+    MOCK_SUBSCRIPTION_PLANS_DB[planIndex] = {
+      ...originalPlan,
+      ...updates,
+      id: originalPlan.id, // Ensure ID doesn't change
+      isTrial: originalPlan.isTrial, // Ensure isTrial doesn't change
+    };
+    return JSON.parse(JSON.stringify(MOCK_SUBSCRIPTION_PLANS_DB[planIndex]));
+  }
+  return undefined;
 }

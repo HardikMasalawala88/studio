@@ -4,17 +4,17 @@
 import type React from 'react';
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { AuthUser, UserFormValues, SubscriptionPlan } from '@/lib/types';
-import type { UserRole } from '@/lib/constants';
-import { USER_ROLES, SUBSCRIPTION_PLAN_IDS, SUBSCRIPTION_PLANS_CONFIG } from '@/lib/constants';
+import type { UserRole, SubscriptionPlanId } from '@/lib/constants';
+import { USER_ROLES, SUBSCRIPTION_PLAN_IDS } from '@/lib/constants';
 import { useRouter, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { addMonths, isAfter } from 'date-fns';
 import { 
   getUsers,
   getUserById,
   createUser as serviceCreateUser,
   updateUser as serviceUpdateUser,
-  updateAdvocateSubscription as serviceUpdateSubscription
+  updateAdvocateSubscription as serviceUpdateSubscription,
+  getSubscriptionPlanById // Added import
 } from '@/lib/userService'; 
 import { isUserSubscriptionActive as checkIsSubscriptionActive } from '@/lib/utils'; 
 
@@ -28,7 +28,7 @@ interface AuthContextType {
   updateUserRole: (uid: string, newRole: UserRole) => Promise<void>; 
   isSubscriptionActive: boolean;
   refreshUser: () => Promise<void>; 
-  updateSubscription: (plan: SubscriptionPlan) => Promise<boolean>;
+  updateSubscription: (planId: SubscriptionPlanId) => Promise<boolean>; // Now takes planId
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,7 +49,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       const refreshedUser = await getUserById(user.uid);
       if (refreshedUser) {
-         // Ensure date fields are Date objects after fetching
         if (refreshedUser.subscriptionExpiryDate && typeof refreshedUser.subscriptionExpiryDate === 'string') {
           refreshedUser.subscriptionExpiryDate = new Date(refreshedUser.subscriptionExpiryDate);
         }
@@ -62,14 +61,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(refreshedUser);
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(refreshedUser));
       } else {
-        // User might have been deleted or not found, clear session
         setUser(null);
         localStorage.removeItem(AUTH_STORAGE_KEY);
-        // Optionally: toast({ title: "Session Expired", description: "Please log in again."}); router.push('/login');
       }
       setLoading(false);
     }
-  }, [user]); // Removed getUserById from deps as it's imported
+  }, [user]);
 
   useEffect(() => {
     try {
@@ -97,9 +94,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, _password?: string) => {
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500)); 
     try {
-      const allUsers = await getUsers(); // from userService
+      const allUsers = await getUsers(); 
       const foundUser = allUsers.find(u => u.email === email);
       
       if (foundUser && foundUser.isActive) {
@@ -127,9 +124,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signup = useCallback(async (values: UserFormValues) => {
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500)); 
     try {
-      const createdUser = await serviceCreateUser(values); // from userService
+      const createdUser = await serviceCreateUser(values); 
       
       setUser(createdUser);
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(createdUser));
@@ -155,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateUserRole = useCallback(async (uid: string, newRole: UserRole) => {
     setLoading(true);
     try {
-      const updatedUserFromService = await serviceUpdateUser(uid, { role: newRole }); // from userService
+      const updatedUserFromService = await serviceUpdateUser(uid, { role: newRole }); 
 
       if (updatedUserFromService) {
         if (user?.uid === uid) { 
@@ -173,18 +170,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, toast]);
 
-  const updateSubscription = useCallback(async (plan: SubscriptionPlan): Promise<boolean> => {
+  const updateSubscription = useCallback(async (planId: SubscriptionPlanId): Promise<boolean> => {
     if (!user || user.role !== USER_ROLES.ADVOCATE) {
       toast({ title: "Error", description: "Only advocates can have subscriptions.", variant: "destructive" });
       return false;
     }
     setLoading(true);
     try {
-      const updatedUser = await serviceUpdateSubscription(user.uid, plan); // from userService
+      // Fetch plan details using planId to ensure we use the latest price/duration
+      // (This step is now effectively handled by serviceUpdateSubscription which fetches the plan)
+      const updatedUser = await serviceUpdateSubscription(user.uid, planId); 
       if (updatedUser) {
         setUser(updatedUser); 
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
-        toast({ title: "Subscription Updated!", description: `You are now subscribed to ${plan.name}.` });
+        // Fetch plan name for toast message
+        const planDetails = await getSubscriptionPlanById(planId);
+        toast({ title: "Subscription Updated!", description: `You are now subscribed to ${planDetails?.name || 'the selected plan'}.` });
         setLoading(false);
         return true;
       } else {
@@ -199,7 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
   useEffect(() => {
-    if (!loading && !user && !['/login', '/signup', '/forgot-password', '/'].includes(pathname) && !pathname.startsWith('/subscription')) {
+    if (!loading && !user && !['/login', '/signup', '/forgot-password', '/'].includes(pathname) && !pathname.startsWith('/subscription') && !pathname.startsWith('/admin')) {
        // router.push('/login'); // Commented out for now as it might be too aggressive during development
     }
   }, [user, loading, pathname, router]);

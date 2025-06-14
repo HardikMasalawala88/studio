@@ -1,39 +1,86 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, ShieldCheck, Loader2 } from 'lucide-react';
-import { ALL_SUBSCRIPTION_PLANS, USER_ROLES } from '@/lib/constants';
+import { USER_ROLES, type SubscriptionPlanId } from '@/lib/constants';
 import type { SubscriptionPlan } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import { format, formatDistanceToNowStrict } from 'date-fns';
+import { getSubscriptionPlans, getSubscriptionPlanById } from '@/lib/userService'; // Fetch plans from service
+import { Skeleton } from '@/components/ui/skeleton'; // For loading state
 
 export function SubscriptionPlans() {
-  const { user, updateSubscription, refreshUser, isSubscriptionActive, loading: authLoading } = useAuth();
+  const { user, updateSubscription: authUpdateSubscription, refreshUser, isSubscriptionActive, loading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState<string | null>(null); // Plan ID being loaded
+  const [allPlans, setAllPlans] = useState<SubscriptionPlan[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
 
-  const handleSelectPlan = async (plan: SubscriptionPlan) => {
+  useEffect(() => {
+    async function fetchPlans() {
+      setLoadingPlans(true);
+      const plans = await getSubscriptionPlans();
+      setAllPlans(plans.filter(p => !p.isTrial)); // Don't show trial as a selectable option here
+      setLoadingPlans(false);
+    }
+    fetchPlans();
+  }, []);
+
+  const handleSelectPlan = async (planToSelect: SubscriptionPlan) => {
     if (!user || user.role !== USER_ROLES.ADVOCATE) return;
-    setIsLoading(plan.id);
-    const success = await updateSubscription(plan);
+    setIsLoading(planToSelect.id);
+    // Fetch the latest plan details from service before updating
+    // This ensures any admin changes to price/duration are used
+    const latestPlanDetails = await getSubscriptionPlanById(planToSelect.id);
+    if (!latestPlanDetails) {
+        // toast({ title: "Error", description: "Selected plan details could not be found. Please try again.", variant: "destructive" });
+        setIsLoading(null);
+        return;
+    }
+    const success = await authUpdateSubscription(latestPlanDetails.id); // Pass only ID, AuthContext will fetch details
     if (success) {
-      await refreshUser(); // Refresh user data from AuthContext to get updated subscription
+      await refreshUser(); 
     }
     setIsLoading(null);
   };
 
-  const currentPlan = user?.subscriptionPlanId ? ALL_SUBSCRIPTION_PLANS.find(p => p.id === user.subscriptionPlanId) : null;
+  const currentPlan = user?.subscriptionPlanId ? allPlans.find(p => p.id === user.subscriptionPlanId) : null;
+  // If current plan is not in allPlans (e.g. it's a trial plan), fetch it directly for display
+  const [currentPlanDetails, setCurrentPlanDetails] = useState<SubscriptionPlan | null>(null);
+  useEffect(() => {
+    if (user?.subscriptionPlanId) {
+        getSubscriptionPlanById(user.subscriptionPlanId).then(plan => {
+            if (plan) setCurrentPlanDetails(plan);
+        });
+    } else {
+        setCurrentPlanDetails(null);
+    }
+  }, [user?.subscriptionPlanId]);
+
+
+  if (loadingPlans || authLoading) {
+     return (
+        <div className="space-y-8">
+            <Skeleton className="h-24 w-full rounded-lg" />
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <Skeleton className="h-64 w-full rounded-lg" />
+                <Skeleton className="h-64 w-full rounded-lg" />
+                <Skeleton className="h-64 w-full rounded-lg" />
+            </div>
+        </div>
+     )
+  }
 
   return (
     <div className="space-y-8">
-      {user && user.role === USER_ROLES.ADVOCATE && currentPlan && (
+      {user && user.role === USER_ROLES.ADVOCATE && currentPlanDetails && (
         <Card className="border-primary shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShieldCheck className="h-6 w-6 text-primary" />
-              Your Current Plan: {currentPlan.name}
+              Your Current Plan: {currentPlanDetails.name}
             </CardTitle>
             {user.subscriptionExpiryDate && (
               <CardDescription>
@@ -52,8 +99,8 @@ export function SubscriptionPlans() {
       )}
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {ALL_SUBSCRIPTION_PLANS.filter(plan => !plan.isTrial).map((plan) => ( // Don't show trial as a selectable option here
-          <Card key={plan.id} className={`flex flex-col ${currentPlan?.id === plan.id && isSubscriptionActive ? 'border-2 border-green-500' : 'hover:shadow-xl transition-shadow'}`}>
+        {allPlans.map((plan) => (
+          <Card key={plan.id} className={`flex flex-col ${currentPlanDetails?.id === plan.id && isSubscriptionActive ? 'border-2 border-green-500' : 'hover:shadow-xl transition-shadow'}`}>
             <CardHeader className="pb-4">
               <CardTitle className="text-xl font-headline">{plan.name}</CardTitle>
               <CardDescription>{plan.description}</CardDescription>
@@ -65,17 +112,18 @@ export function SubscriptionPlans() {
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-green-500" /> Full access to all features</li>
                 <li className="flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-green-500" /> Add, Edit, Delete Cases</li>
-                <li className="flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-green-500" /> Priority Support (Simulated)</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-green-500" /> AI-Powered Summaries</li>
+                <li className="flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-green-500" /> {plan.id === 'paid_12m_800inr' ? "Priority Support" : "Basic Support"} (Simulated)</li>
               </ul>
             </CardContent>
             <CardFooter>
               <Button 
                 className="w-full" 
                 onClick={() => handleSelectPlan(plan)} 
-                disabled={isLoading === plan.id || authLoading || (currentPlan?.id === plan.id && isSubscriptionActive)}
+                disabled={isLoading === plan.id || authLoading || (currentPlanDetails?.id === plan.id && isSubscriptionActive)}
               >
                 {isLoading === plan.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {currentPlan?.id === plan.id && isSubscriptionActive ? 'Currently Active' : 'Choose Plan'}
+                {currentPlanDetails?.id === plan.id && isSubscriptionActive ? 'Currently Active' : 'Choose Plan'}
               </Button>
             </CardFooter>
           </Card>

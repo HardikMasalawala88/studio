@@ -29,11 +29,25 @@ export const SUBSCRIPTION_PLAN_IDS = {
 
 export type SubscriptionPlanId = typeof SUBSCRIPTION_PLAN_IDS[keyof typeof SUBSCRIPTION_PLAN_IDS];
 
-export const SUBSCRIPTION_PLANS_CONFIG = {
+// This config now serves as the INITIAL/DEFAULT values for plans.
+// The actual mutable plan data will be managed in userService.ts.
+// The 'id' and 'isTrial' properties are considered immutable from the admin UI.
+export const INITIAL_SUBSCRIPTION_PLANS_CONFIG: Record<SubscriptionPlanId, {
+  id: SubscriptionPlanId;
+  name: string;
+  priceINR: number;
+  durationMonths: number;
+  description: string;
+  isTrial?: boolean;
+}> = {
   [SUBSCRIPTION_PLAN_IDS.FREE_TRIAL]: { id: SUBSCRIPTION_PLAN_IDS.FREE_TRIAL, name: "1 Month Free Trial", priceINR: 0, durationMonths: 1, description: "Full access for 1 month.", isTrial: true },
   [SUBSCRIPTION_PLAN_IDS.MONTHLY_3]: { id: SUBSCRIPTION_PLAN_IDS.MONTHLY_3, name: "3 Month Access", priceINR: 300, durationMonths: 3, description: "₹300 for 3 months." },
   [SUBSCRIPTION_PLAN_IDS.HALF_YEARLY]: { id: SUBSCRIPTION_PLAN_IDS.HALF_YEARLY, name: "6 Month Access", priceINR: 500, durationMonths: 6, description: "₹500 for 6 months." },
   [SUBSCRIPTION_PLAN_IDS.YEARLY]: { id: SUBSCRIPTION_PLAN_IDS.YEARLY, name: "12 Month Access", priceINR: 800, durationMonths: 12, description: "₹800 for 12 months." },
-} as const;
+};
 
-export const ALL_SUBSCRIPTION_PLANS = Object.values(SUBSCRIPTION_PLANS_CONFIG);
+// This can still be useful for components that need a quick list of all plan objects,
+// but they should ideally fetch from the service if they need the latest editable data.
+// For simplicity, this will now get its data from the service layer once it's initialized.
+// However, since constants file is loaded first, we will initialize it here, and the service will use this.
+export const ALL_INITIAL_SUBSCRIPTION_PLANS = Object.values(INITIAL_SUBSCRIPTION_PLANS_CONFIG);
