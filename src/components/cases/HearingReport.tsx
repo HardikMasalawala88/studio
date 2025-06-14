@@ -74,7 +74,9 @@ export function HearingReport() {
     const frameDoc = iframe.contentDocument || iframe.contentWindow?.document;
     if (!frameDoc) {
       toast({ title: "Error", description: "Could not create print frame.", variant: "destructive" });
-      document.body.removeChild(iframe);
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
       return;
     }
 
@@ -119,9 +121,9 @@ export function HearingReport() {
           if (document.body.contains(iframe)) {
              document.body.removeChild(iframe);
           }
-        }, 1000); 
+        }, 1500); 
       }
-    }, 250);
+    }, 500); // Increased delay before printing
   };
   
   if (loading) {
@@ -167,6 +169,7 @@ export function HearingReport() {
         </Card>
       ) : (
         <div ref={reportRef}>
+          {/* This table is only for printing, styled by iframe's internal CSS */}
           <table className="hidden print:table w-full printable-report-table">
             <thead>
               <tr>
@@ -198,6 +201,7 @@ export function HearingReport() {
             </tbody>
           </table>
 
+          {/* This section is for on-screen display */}
           <div className="space-y-4 no-print">
             {hearings.map((hearing) => (
               <Card key={hearing.caseId}>
@@ -243,7 +247,7 @@ export function HearingReport() {
             setSelectedCaseForUpdate(null);
           }}
           caseToUpdate={selectedCaseForUpdate}
-          currentUser={user as AuthUser} // user is checked for advocate role, so it should be AuthUser
+          currentUser={user as AuthUser} 
           onHearingUpdated={handleHearingUpdated}
         />
       )}
