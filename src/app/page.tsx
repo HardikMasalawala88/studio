@@ -78,7 +78,7 @@ export default function LandingPage() {
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center mb-16">
               <div className="space-y-3">
-                <div className="inline-block rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary font-semibold shadow-sm">Core Features</div>
+                <div className="inline-block rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary font-semibold shadow-sm font-headline">Core Features</div>
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">Empowering Legal Professionals, Intelligently</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
                   {APP_NAME} provides a comprehensive suite of tools built for efficiency, security, and cutting-edge AI assistance.
@@ -124,7 +124,7 @@ export default function LandingPage() {
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center mb-16">
               <div className="space-y-3">
-                 <div className="inline-block rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary font-semibold shadow-sm">The {APP_NAME} Advantage</div>
+                 <div className="inline-block rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary font-semibold shadow-sm font-headline">The {APP_NAME} Advantage</div>
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">Work Smarter, Not Harder</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
                   Discover how {APP_NAME} revolutionizes your workflow and client interactions.
@@ -155,7 +155,7 @@ export default function LandingPage() {
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center mb-16">
               <div className="space-y-3">
-                <div className="inline-block rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary font-semibold shadow-sm">Pricing Plans</div>
+                <div className="inline-block rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary font-semibold shadow-sm font-headline">Pricing Plans</div>
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">Flexible Plans for Every Advocate</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
                   Choose a plan that fits your practice. All paid plans include full access to AI features and dedicated support. Kickstart with our 1-month free trial!
@@ -163,7 +163,6 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Row 1: Free Trial Plan */}
             {trialPlan && (
               <div className="flex justify-center mb-10 md:mb-12">
                 <div className="w-full max-w-md">
@@ -175,7 +174,6 @@ export default function LandingPage() {
               </div>
             )}
 
-            {/* Row 2: Paid Plans */}
             {paidPlans.length > 0 && (
               <div className="mx-auto grid max-w-6xl items-stretch gap-8 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {paidPlans.map((plan) => (
@@ -296,13 +294,13 @@ function PricingCard({ plan, isFeatured = false }: PricingCardProps) {
       isTrialPlan ? 'border-2 border-pink-500 shadow-lg relative ring-2 ring-pink-500 ring-offset-2' : ''
     )}>
       {isFeatured && !isTrialPlan && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-lg">
-          <Award className="inline-block h-4 w-4 mr-1" /> Best Value
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-lg flex items-center gap-1">
+          <Award className="h-4 w-4" /> Best Value
         </div>
       )}
       {isTrialPlan && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-pink-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg">
-          <Gift className="inline-block h-4 w-4 mr-1" /> Start Free!
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-pink-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg flex items-center gap-1">
+          <Gift className="h-4 w-4" /> Start Free!
         </div>
       )}
       <CardHeader className={cn("pb-4", (isFeatured || isTrialPlan) ? 'pt-10' : 'pt-6')}>
