@@ -1,6 +1,7 @@
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, Briefcase, Users, FileText, Zap } from 'lucide-react';
+import { CheckCircle, Briefcase, Users, FileText, Zap, Brain } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { APP_NAME } from '@/lib/constants';
@@ -85,6 +86,11 @@ export default function LandingPage() {
                 icon={<Zap className="h-8 w-8 text-primary" />}
                 title="AI-Powered Summaries"
                 description="Leverage AI to generate concise summaries of lengthy case notes, saving you time and highlighting crucial information."
+              />
+              <FeatureCard
+                icon={<Brain className="h-8 w-8 text-primary" />}
+                title="Intelligent Case Assistance"
+                description="Harness the power of AI for advanced case analysis, task automation, and predictive insights to elevate your legal strategy."
               />
               <FeatureCard
                 icon={<FileText className="h-8 w-8 text-primary" />}
