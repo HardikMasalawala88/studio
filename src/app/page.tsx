@@ -1,16 +1,16 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, Briefcase, Users, FileText, Zap, Brain, MessageSquare, Sparkles, ShieldCheck, Award } from 'lucide-react';
+import { CheckCircle, Briefcase, Users, FileText, Zap, Brain, MessageSquare, Sparkles, ShieldCheck, Award, Gift } from 'lucide-react'; // Added Gift
 import Image from 'next/image';
 import Link from 'next/link';
 import { APP_NAME, ALL_SUBSCRIPTION_PLANS } from '@/lib/constants';
 import type { SubscriptionPlan } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 export default function LandingPage() {
-  const displayPlans = ALL_SUBSCRIPTION_PLANS.filter(plan => !plan.isTrial);
-  // Optionally, mark one plan as featured
-  const featuredPlanId = 'paid_6m_500inr'; 
+  const displayPlans = ALL_SUBSCRIPTION_PLANS; // Show all plans, including trial
+  const featuredPlanId = 'paid_6m_500inr'; // For "Best Value" highlight
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -150,13 +150,13 @@ export default function LandingPage() {
                 <div className="inline-block rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary font-semibold shadow-sm">Pricing Plans</div>
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">Flexible Plans for Every Advocate</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  Choose a plan that fits your practice. All paid plans include full access to AI features and dedicated support. Free 1-month trial on signup!
+                  Choose a plan that fits your practice. All paid plans include full access to AI features and dedicated support. Kickstart with our 1-month free trial!
                 </p>
               </div>
             </div>
             <div className="mx-auto grid max-w-6xl items-stretch gap-8 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {displayPlans.map((plan) => (
-                <PricingCard key={plan.id} plan={plan} isFeatured={plan.id === featuredPlanId} />
+                <PricingCard key={plan.id} plan={plan} isFeatured={plan.id === featuredPlanId && !plan.isTrial} />
               ))}
             </div>
              <p className="text-center text-sm text-muted-foreground mt-12">
@@ -232,7 +232,17 @@ interface PricingCardProps {
 }
 
 function PricingCard({ plan, isFeatured = false }: PricingCardProps) {
-  const features = [
+  const isTrialPlan = plan.isTrial === true;
+
+  const trialFeatures = [
+    "Full Case Management Suite (1 Month)",
+    "AI-Powered Case Summaries (1 Month)",
+    "Client Collaboration Portal (1 Month)",
+    "Secure Document Storage (1 Month)",
+    "No Credit Card Required for Trial",
+  ];
+
+  const paidFeaturesBase = [
     "Full Case Management Suite",
     "AI-Powered Case Summaries",
     "Intelligent Document Analysis (AI)",
@@ -242,40 +252,58 @@ function PricingCard({ plan, isFeatured = false }: PricingCardProps) {
     "Role-Based Access Control",
     "Basic Support",
   ];
-
-  if (plan.id === 'paid_12m_800inr') {
-    features.push("Priority Support");
+  
+  let features = paidFeaturesBase;
+  if (isTrialPlan) {
+    features = trialFeatures;
+  } else if (plan.id === 'paid_12m_800inr') {
+    features = [...paidFeaturesBase, "Priority Support"];
   }
 
 
   return (
-    <Card className={`flex flex-col ${isFeatured ? 'border-2 border-primary shadow-xl relative ring-2 ring-primary ring-offset-2' : 'hover:shadow-xl'} transition-all duration-300`}>
-      {isFeatured && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground shadow-lg">
-          <Award className="inline-block h-3 w-3 mr-1" /> Best Value
+    <Card className={cn(
+      "flex flex-col transition-all duration-300 h-full",
+      isFeatured && !isTrialPlan ? 'border-2 border-primary shadow-xl relative ring-2 ring-primary ring-offset-2' : 'hover:shadow-xl',
+      isTrialPlan ? 'border-2 border-pink-500 shadow-lg relative ring-2 ring-pink-500 ring-offset-2' : ''
+    )}>
+      {isFeatured && !isTrialPlan && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-lg">
+          <Award className="inline-block h-4 w-4 mr-1" /> Best Value
         </div>
       )}
-      <CardHeader className={`pb-4 ${isFeatured ? 'pt-8' : ''}`}>
-        <CardTitle className="font-headline text-2xl">{plan.name}</CardTitle>
-        <div className="flex items-baseline">
-          <span className="text-4xl font-bold">₹{plan.priceINR}</span>
-          <span className="ml-1 text-muted-foreground">/ {plan.durationMonths} months</span>
+      {isTrialPlan && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-pink-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg">
+          <Gift className="inline-block h-4 w-4 mr-1" /> Start Free!
         </div>
-        <CardDescription>{plan.description}</CardDescription>
+      )}
+      <CardHeader className={cn("pb-4", (isFeatured || isTrialPlan) ? 'pt-10' : 'pt-6')}>
+        <CardTitle className="font-headline text-2xl">{plan.name}</CardTitle>
+        {isTrialPlan ? (
+          <CardDescription>Everything you need to get started, free for {plan.durationMonths} month.</CardDescription>
+        ) : (
+          <>
+            <div className="flex items-baseline">
+              <span className="text-4xl font-bold">₹{plan.priceINR}</span>
+              <span className="ml-1 text-muted-foreground">/ {plan.durationMonths} months</span>
+            </div>
+            <CardDescription>{plan.description}</CardDescription>
+          </>
+        )}
       </CardHeader>
       <CardContent className="flex-grow space-y-4">
         <ul className="space-y-2 text-sm text-muted-foreground">
           {features.map((feature, index) => (
             <li key={index} className="flex items-center">
-              <CheckCircle className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" /> 
+              <CheckCircle className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
               {feature}
             </li>
           ))}
         </ul>
       </CardContent>
       <CardFooter>
-        <Button asChild className="w-full" variant={isFeatured ? 'default' : 'outline'}>
-          <Link href="/signup">Get Started</Link>
+        <Button asChild className="w-full" variant={(isFeatured && !isTrialPlan) || isTrialPlan ? 'default' : 'outline'}>
+          <Link href="/signup">{isTrialPlan ? 'Start Free Trial' : 'Get Started'}</Link>
         </Button>
       </CardFooter>
     </Card>
