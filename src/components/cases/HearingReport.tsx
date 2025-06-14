@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import type { Case, AuthUser } from "@/lib/types";
-import { getDailyHearings } from "@/lib/caseService"; 
+import { getDailyHearings } from "@/lib/caseService";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Printer, CalendarDays, Briefcase, User, Edit } from "lucide-react";
@@ -12,7 +12,7 @@ import { APP_NAME, USER_ROLES } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { UpdateHearingDialog } from "./UpdateHearingDialog"; 
+import { UpdateHearingDialog } from "./UpdateHearingDialog";
 
 export function HearingReport() {
   const { user } = useAuth();
@@ -111,7 +111,7 @@ export function HearingReport() {
 
     setTimeout(() => {
       try {
-        iframe.contentWindow?.focus(); 
+        iframe.contentWindow?.focus();
         iframe.contentWindow?.print();
       } catch (e) {
         console.error("Print error:", e);
@@ -125,7 +125,7 @@ export function HearingReport() {
       }
     }, 1000); // Increased delay before printing
   };
-  
+
   if (loading) {
     return (
         <div className="space-y-4">
@@ -173,7 +173,7 @@ export function HearingReport() {
           <table className="hidden print:table w-full printable-report-table">
             <thead>
               <tr>
-                <th>Time (Today's Hearing)</th>
+                <th>Time (Today&apos;s Hearing)</th>
                 <th>Case Title</th>
                 <th>Client Name</th>
                 <th>Current Case Status</th>
@@ -183,13 +183,7 @@ export function HearingReport() {
             </thead>
             <tbody>
               {hearings.map((hearing) => (
-                <tr key={hearing.caseId}>
-                  <td>{format(new Date(hearing.hearingDate), "p")}</td>
-                  <td>{hearing.title}</td>
-                  <td>{hearing.clientName}</td>
-                  <td>{hearing.status}</td>
-                  <td></td> {/* Blank cell for Next Hearing Date */}
-                  <td>
+                <tr key={hearing.caseId}><td>{format(new Date(hearing.hearingDate), "p")}</td><td>{hearing.title}</td><td>{hearing.clientName}</td><td>{hearing.status}</td><td /><td>
                     {hearing.hearingHistory && hearing.hearingHistory.length > 0 ? (
                         <ul>
                         {hearing.hearingHistory.slice(-2).filter(h => h.notes).map((histEntry, index) => (
@@ -197,8 +191,7 @@ export function HearingReport() {
                         ))}
                         </ul>
                     ) : 'N/A'}
-                  </td>
-                </tr>
+                  </td></tr>
               ))}
             </tbody>
           </table>
@@ -249,11 +242,10 @@ export function HearingReport() {
             setSelectedCaseForUpdate(null);
           }}
           caseToUpdate={selectedCaseForUpdate}
-          currentUser={user as AuthUser} 
+          currentUser={user as AuthUser}
           onHearingUpdated={handleHearingUpdated}
         />
       )}
     </div>
   );
 }
-
