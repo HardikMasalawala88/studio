@@ -1,7 +1,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, Briefcase, Users, FileText, Zap, Brain, MessageSquare, Sparkles, ShieldCheck, Award, Gift } from 'lucide-react';
+import { CheckCircle, Briefcase, Users, FileText, Zap, Brain, MessageSquare, Sparkles, ShieldCheck, Award, Gift, Users2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { APP_NAME, ALL_SUBSCRIPTION_PLANS } from '@/lib/constants';
@@ -35,21 +35,14 @@ export default function LandingPage() {
       <main className="flex-1">
         <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-br from-primary/10 via-background to-accent/10">
           <div className="container px-4 md:px-6">
-            <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
+            <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_500px]"> {/* Adjusted image column width */}
               <div className="flex flex-col justify-center space-y-6">
                 <div className="space-y-4">
                   <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline text-primary">
-                    Transform Your Legal Practice with {APP_NAME}
+                    The <span className='text-red-600 font-semibold text-4xl sm:text-5xl xl:text-6xl/none'>AI-POWERED</span> <s className='text-muted-foreground opacity-70'>Traditional</s> Way to Manage Your Cases
                   </h1>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl lg:text-lg xl:text-xl">
-                    The
-                    {' '}
-                    <span className="inline-flex flex-col items-center align-middle mx-1 relative" style={{ top: '-0.15em' }}>
-                      <span className="text-red-600 font-semibold text-sm leading-none" style={{ marginBottom: '0.1em' }}>AI-POWERED</span>
-                      <s className="leading-tight text-current">Traditional</s>
-                    </span>
-                    {' '}
-                    platform designed to streamline case management, enhance client collaboration, and elevate your legal strategy.
+                    {APP_NAME} is intelligently designed to streamline case management, enhance client collaboration, and elevate your legal strategy with cutting-edge AI.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
@@ -62,12 +55,12 @@ export default function LandingPage() {
                 </div>
               </div>
               <Image
-                src="https://placehold.co/600x600.png"
+                src="https://placehold.co/600x400.png" // Adjusted aspect ratio
                 width="600"
-                height="600"
-                alt="Modern legal professionals using CaseConnect"
-                className="mx-auto overflow-hidden rounded-xl object-cover sm:w-full lg:order-last lg:aspect-square shadow-xl"
-                data-ai-hint="modern legal technology"
+                height="400" // Adjusted aspect ratio
+                alt="CaseConnect platform dashboard"
+                className="mx-auto overflow-hidden rounded-xl object-cover sm:w-full lg:order-last shadow-xl"
+                data-ai-hint="legal dashboard software" // Updated hint
                 priority
               />
             </div>
@@ -99,12 +92,12 @@ export default function LandingPage() {
               <FeatureCard
                 icon={<Zap className="h-8 w-8" />}
                 title="AI-Powered Summaries"
-                description="Leverage AI to generate concise summaries of lengthy case notes, saving you time and highlighting crucial information."
+                description="Instantly distill lengthy case notes into concise, actionable summaries with our advanced AI. Save critical time and quickly grasp key information for hearings and strategy."
               />
               <FeatureCard
                 icon={<Brain className="h-8 w-8" />}
                 title="Intelligent Case Assistance"
-                description="Harness the power of AI for advanced case analysis, task automation, and predictive insights to elevate your legal strategy."
+                description="Go beyond summaries. Our AI offers intelligent task suggestions, helps identify crucial data points, and provides deeper analytical insights to strengthen your case preparation."
               />
               <FeatureCard
                 icon={<FileText className="h-8 w-8" />}
@@ -120,32 +113,32 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="why-choose-us" className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-b from-accent/10 to-background">
+        <section id="ai-advantage" className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-b from-accent/10 to-background">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center mb-16">
               <div className="space-y-3">
-                 <div className="inline-block rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary font-semibold shadow-sm font-headline">The {APP_NAME} Advantage</div>
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">Work Smarter, Not Harder</h2>
+                 <div className="inline-block rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary font-semibold shadow-sm font-headline">The {APP_NAME} AI Advantage</div>
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">Work Smarter, Not Harder with AI</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  Discover how {APP_NAME} revolutionizes your workflow and client interactions.
+                  Leverage cutting-edge Artificial Intelligence seamlessly integrated into your workflow.
                 </p>
               </div>
             </div>
             <div className="mx-auto grid max-w-5xl items-center gap-6 py-2 lg:grid-cols-3 lg:gap-12">
               <BenefitPoint
                 icon={<Zap className="h-10 w-10 text-primary" />}
-                title="Streamlined Efficiency"
-                description="Automate routine tasks, manage deadlines effectively, and access case information instantly, freeing up your valuable time."
+                title="AI-Accelerated Workflow"
+                description="Let AI handle repetitive tasks like document summarization and data organization, freeing up your time for critical legal thinking and client interaction."
               />
               <BenefitPoint
-                icon={<MessageSquare className="h-10 w-10 text-primary" />}
-                title="Enhanced Collaboration"
-                description="Improve communication with clients and team members through secure, role-based access to case updates and documents."
+                icon={<Brain className="h-10 w-10 text-primary" />}
+                title="Smarter Case Strategy"
+                description="Uncover deeper insights from your case data. Our AI helps identify patterns, potential risks, and key information to build more robust legal strategies."
               />
               <BenefitPoint
                 icon={<Sparkles className="h-10 w-10 text-primary" />}
-                title="AI-Driven Insights"
-                description="Gain a competitive edge with AI-powered summaries, case analysis, and predictive tools to inform your legal strategies."
+                title="Future-Ready Practice"
+                description={`Embrace the future of legal tech. ${APP_NAME} equips you with sophisticated AI tools, ensuring your practice remains competitive and efficient.`}
               />
             </div>
           </div>
@@ -263,6 +256,7 @@ function PricingCard({ plan, isFeatured = false }: PricingCardProps) {
   const trialFeatures = [
     "Full Case Management Suite (1 Month)",
     "AI-Powered Case Summaries (1 Month)",
+    "Intelligent Case Assistance (1 Month)",
     "Client Collaboration Portal (1 Month)",
     "Secure Document Storage (1 Month)",
     "No Credit Card Required for Trial",
@@ -271,7 +265,7 @@ function PricingCard({ plan, isFeatured = false }: PricingCardProps) {
   const paidFeaturesBase = [
     "Full Case Management Suite",
     "AI-Powered Case Summaries",
-    "Intelligent Document Analysis (AI)",
+    "Intelligent Case Assistance",
     "Client Collaboration Portal",
     "Daily Hearing Reports & Alerts",
     "Secure Document Storage",
@@ -335,3 +329,4 @@ function PricingCard({ plan, isFeatured = false }: PricingCardProps) {
     </Card>
   );
 }
+
