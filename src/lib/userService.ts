@@ -145,5 +145,3 @@ export async function updateAdvocateSubscription(userId: string, plan: Subscript
   console.log(`[UserService] Subscription updated for ${MOCK_USERS_DB[userIndex].email} to ${plan.name}. Expires: ${newExpiryDate}`);
   return MOCK_USERS_DB[userIndex];
 }
-
-// The isUserSubscriptionActive function has been moved to src/lib/utils.ts

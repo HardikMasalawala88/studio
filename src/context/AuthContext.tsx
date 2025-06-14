@@ -10,11 +10,11 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { addMonths, isAfter } from 'date-fns';
 import { 
-  updateAdvocateSubscription as serviceUpdateSubscription,
   getUsers,
   getUserById,
   createUser as serviceCreateUser,
-  updateUser as serviceUpdateUser 
+  updateUser as serviceUpdateUser,
+  updateAdvocateSubscription as serviceUpdateSubscription
 } from '@/lib/userService'; 
 import { isUserSubscriptionActive as checkIsSubscriptionActive } from '@/lib/utils'; 
 
@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setLoading(false);
     }
-  }, [user, getUserById]);
+  }, [user]); // Removed getUserById from deps as it's imported
 
   useEffect(() => {
     try {
@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
     try {
-      const allUsers = await getUsers();
+      const allUsers = await getUsers(); // from userService
       const foundUser = allUsers.find(u => u.email === email);
       
       if (foundUser && foundUser.isActive) {
@@ -129,8 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
     try {
-      // serviceCreateUser will throw an error if email exists or other validation fails
-      const createdUser = await serviceCreateUser(values);
+      const createdUser = await serviceCreateUser(values); // from userService
       
       setUser(createdUser);
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(createdUser));
@@ -156,7 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateUserRole = useCallback(async (uid: string, newRole: UserRole) => {
     setLoading(true);
     try {
-      const updatedUserFromService = await serviceUpdateUser(uid, { role: newRole });
+      const updatedUserFromService = await serviceUpdateUser(uid, { role: newRole }); // from userService
 
       if (updatedUserFromService) {
         if (user?.uid === uid) { 
@@ -164,7 +163,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUserFromService));
         }
         toast({ title: "User Role Updated", description: `User role set to ${newRole}.` });
-        // It's good practice for the component calling this (e.g., UserList) to also refresh its own data.
       } else {
         toast({ title: "Update Failed", description: "User not found or update failed at service level.", variant: "destructive" });
       }
@@ -182,7 +180,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setLoading(true);
     try {
-      const updatedUser = await serviceUpdateSubscription(user.uid, plan);
+      const updatedUser = await serviceUpdateSubscription(user.uid, plan); // from userService
       if (updatedUser) {
         setUser(updatedUser); 
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
@@ -220,4 +218,3 @@ export function useAuth() {
   }
   return context;
 }
-
