@@ -8,15 +8,15 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   phone?: string;
-  createdOn?: Date; // Firestore timestamp will be converted to Date
-  advocateEnrollmentNumber?: string; // For advocates
+  createdOn?: Date;
+  advocateEnrollmentNumber?: string;
 }
 
 export interface Note {
   message: string;
-  by: string; // uid of user who wrote the note
-  byName?: string; // Name of the user for display
-  at: Date; // Firestore timestamp will be converted to Date
+  by: string; 
+  byName?: string; 
+  at: Date; 
 }
 
 export interface CaseDocument {
@@ -25,36 +25,44 @@ export interface CaseDocument {
   uploadedAt: Date;
 }
 
+export interface HearingEntry {
+  hearingDate: Date;
+  status: CaseStatus; // Status of the case *after* this hearing or as set for this hearing
+  notes?: string; // Notes specific to this hearing's outcome
+  updatedBy: string; // UID of the advocate who updated this entry
+  updatedByName: string; // Name of the advocate
+  updatedAt: Date; // When this history entry was made
+}
+
 export interface Case {
   caseId: string;
   title: string;
   description: string;
-  hearingDate: Date; // Firestore timestamp will be converted to Date
-  status: CaseStatus;
+  hearingDate: Date; // Represents the *next* scheduled hearing date
+  status: CaseStatus; // Represents the *current overall* status of the case
   advocateId: string;
-  advocateName?: string; // For display
+  advocateName?: string; 
   clientId: string;
-  clientName?: string; // For display
+  clientName?: string; 
   documents: CaseDocument[];
-  notes: Note[];
-  createdOn: Date; // Firestore timestamp will be converted to Date
+  notes: Note[]; // General case notes, not specific to a single hearing outcome
+  hearingHistory: HearingEntry[]; // Chronological record of hearings
+  createdOn: Date; 
 }
 
 export interface DailyHearing {
-  date: Date; // Firestore timestamp will be converted to Date
+  date: Date; 
   advocateId: string;
   caseIds: string[];
 }
 
-// For forms, especially case form
 export type CaseFormValues = {
   title: string;
   description: string;
   hearingDate: Date;
   status: CaseStatus;
-  advocateId: string; // Will be UID
-  clientId: string; // Will be UID
-  // documents and notes are handled separately
+  advocateId: string; 
+  clientId: string; 
 };
 
 export type UserFormValues = {
@@ -63,6 +71,13 @@ export type UserFormValues = {
   email: string;
   phone?: string;
   role: UserRole;
-  password?: string; // Only for new user creation or password change
-  advocateEnrollmentNumber?: string; // For advocates
+  password?: string; 
+  advocateEnrollmentNumber?: string; 
+};
+
+export type HearingUpdateFormValues = {
+  currentHearingStatus: CaseStatus;
+  currentHearingNotes?: string;
+  nextHearingDate?: Date;
+  nextHearingStatus?: CaseStatus;
 };

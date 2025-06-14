@@ -2,16 +2,17 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import type { Case } from "@/lib/types";
-import { getDailyHearings } from "@/lib/caseService"; // Mock service
+import type { Case, AuthUser } from "@/lib/types";
+import { getDailyHearings } from "@/lib/caseService"; 
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Printer, CalendarDays, Briefcase, User } from "lucide-react";
+import { Printer, CalendarDays, Briefcase, User, Edit } from "lucide-react";
 import { format } from "date-fns";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, USER_ROLES } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { UpdateHearingDialog } from "./UpdateHearingDialog"; 
 
 export function HearingReport() {
   const { user } = useAuth();
@@ -21,19 +22,34 @@ export function HearingReport() {
   const reportRef = useRef<HTMLDivElement>(null);
   const today = new Date();
 
-  useEffect(() => {
-    async function loadHearings() {
-      if (user && user.role === "Advocate") {
-        setLoading(true);
-        const fetchedHearings = await getDailyHearings(user.uid, today);
-        setHearings(fetchedHearings);
-        setLoading(false);
-      } else if (user) { // Non-advocates shouldn't see this, but handle gracefully
-        setLoading(false);
-      }
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const [selectedCaseForUpdate, setSelectedCaseForUpdate] = useState<Case | null>(null);
+
+  const fetchHearings = async () => {
+    if (user && user.role === USER_ROLES.ADVOCATE) {
+      setLoading(true);
+      const fetchedHearings = await getDailyHearings(user.uid, today);
+      setHearings(fetchedHearings);
+      setLoading(false);
+    } else if (user) {
+      setLoading(false);
     }
-    loadHearings();
+  };
+
+  useEffect(() => {
+    fetchHearings();
   }, [user]);
+
+  const handleOpenUpdateDialog = (caseItem: Case) => {
+    setSelectedCaseForUpdate(caseItem);
+    setIsUpdateDialogOpen(true);
+  };
+
+  const handleHearingUpdated = (updatedCase: Case) => {
+    // Refresh the list of hearings for today
+    setHearings(prev => prev.map(h => h.caseId === updatedCase.caseId ? updatedCase : h).filter(h => new Date(h.hearingDate).toDateString() === today.toDateString() && h.status !== "Closed"));
+    fetchHearings(); // Re-fetch to get the most accurate list for today
+  };
 
   const handlePrint = () => {
     if (!reportRef.current || !user) {
@@ -63,10 +79,10 @@ export function HearingReport() {
     }
 
     frameDoc.open();
-    frameDoc.write(`
+    frameDoc.write(\`
       <html>
         <head>
-          <title>Daily Hearing Report - ${format(today, "PPP")}</title>
+          <title>Daily Hearing Report - \${format(today, "PPP")}</title>
           <style>
             body { font-family: 'Inter', Arial, sans-serif; margin: 20px; color: #333333; }
             table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 10pt; }
@@ -80,30 +96,29 @@ export function HearingReport() {
         </head>
         <body>
           <div class="print-header">
-            <h1>${APP_NAME}</h1>
+            <h1>\${APP_NAME}</h1>
             <h2>Daily Hearing Report</h2>
-            <p>Date: ${format(today, "PPP")}</p>
-            <p>Advocate: ${user.firstName} ${user.lastName}</p>
+            <p>Date: \${format(today, "PPP")}</p>
+            <p>Advocate: \${user.firstName} \${user.lastName}</p>
           </div>
-          ${printContents}
+          \${printContents}
         </body>
       </html>
-    `);
+    \`);
     frameDoc.close();
 
-    // Delay slightly to ensure content is rendered in iframe before printing
     setTimeout(() => {
       try {
-        iframe.contentWindow?.focus(); // Required for some browsers
+        iframe.contentWindow?.focus(); 
         iframe.contentWindow?.print();
       } catch (e) {
         console.error("Print error:", e);
         toast({ title: "Print Failed", description: "An error occurred while trying to print.", variant: "destructive"});
       } finally {
-        // Clean up iframe after print dialog is closed or error occurs
-        // Some browsers might need a longer delay for cleanup, or onafterprint event if supported universally.
         setTimeout(() => {
-          document.body.removeChild(iframe);
+          if (document.body.contains(iframe)) {
+             document.body.removeChild(iframe);
+          }
         }, 1000); 
       }
     }, 250);
@@ -127,7 +142,7 @@ export function HearingReport() {
     );
   }
 
-  if (user?.role !== "Advocate") {
+  if (user?.role !== USER_ROLES.ADVOCATE) {
     return <p>This report is only available for advocates.</p>;
   }
 
@@ -152,15 +167,14 @@ export function HearingReport() {
         </Card>
       ) : (
         <div ref={reportRef}>
-          {/* This table structure is primarily for the print view. */}
-          <table className="hidden print:table w-full printable-report-table"> {/* Hidden by default, shown for print via CSS or direct selection */}
+          <table className="hidden print:table w-full printable-report-table">
             <thead>
               <tr>
                 <th>Time</th>
                 <th>Case Title</th>
                 <th>Client Name</th>
                 <th>Status</th>
-                <th>Brief Notes (Last 2)</th>
+                <th>Brief Notes (Last 2 from Hearing History)</th>
               </tr>
             </thead>
             <tbody>
@@ -171,10 +185,10 @@ export function HearingReport() {
                   <td>{hearing.clientName}</td>
                   <td>{hearing.status}</td>
                   <td>
-                    {hearing.notes.length > 0 ? (
+                    {hearing.hearingHistory && hearing.hearingHistory.length > 0 ? (
                         <ul>
-                        {hearing.notes.slice(-2).map((note, index) => (
-                            <li key={index}>{note.message}</li>
+                        {hearing.hearingHistory.slice(-2).filter(h => h.notes).map((histEntry, index) => (
+                            <li key={index}>{histEntry.notes}</li>
                         ))}
                         </ul>
                     ) : 'N/A'}
@@ -184,29 +198,35 @@ export function HearingReport() {
             </tbody>
           </table>
 
-          {/* Web view using Cards - this should be hidden during print by .no-print class */}
           <div className="space-y-4 no-print">
             {hearings.map((hearing) => (
               <Card key={hearing.caseId}>
                 <CardHeader>
-                  <CardTitle>{hearing.title}</CardTitle>
-                  <CardDescription>
-                    Hearing Time: {format(new Date(hearing.hearingDate), "p")}
-                  </CardDescription>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle>{hearing.title}</CardTitle>
+                      <CardDescription>
+                        Hearing Time: {format(new Date(hearing.hearingDate), "p")}
+                      </CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => handleOpenUpdateDialog(hearing)}>
+                      <Edit className="mr-2 h-4 w-4" /> Update Hearing
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <p className="text-sm flex items-center"><User className="h-4 w-4 mr-2 text-muted-foreground" /> Client: <span className="font-medium ml-1">{hearing.clientName}</span></p>
-                  <p className="text-sm flex items-center"><Briefcase className="h-4 w-4 mr-2 text-muted-foreground" /> Status: <span className="font-medium ml-1">{hearing.status}</span></p>
+                  <p className="text-sm flex items-center"><Briefcase className="h-4 w-4 mr-2 text-muted-foreground" /> Current Status: <span className="font-medium ml-1">{hearing.status}</span></p>
                   <div>
-                    <h4 className="text-sm font-semibold mt-2">Recent Notes:</h4>
-                    {hearing.notes.length > 0 ? (
+                    <h4 className="text-sm font-semibold mt-2">Recent Notes (General):</h4>
+                    {hearing.notes && hearing.notes.length > 0 ? (
                       <ul className="list-disc list-inside text-xs text-muted-foreground pl-2 max-h-20 overflow-y-auto">
-                        {hearing.notes.slice(-3).map((note, index) => ( // Show last 3 notes
+                        {hearing.notes.slice(-3).map((note, index) => (
                           <li key={index} className="truncate">{note.message}</li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-xs text-muted-foreground">No notes available.</p>
+                      <p className="text-xs text-muted-foreground">No general notes available.</p>
                     )}
                   </div>
                 </CardContent>
@@ -214,6 +234,18 @@ export function HearingReport() {
             ))}
           </div>
         </div>
+      )}
+      {selectedCaseForUpdate && user && (
+        <UpdateHearingDialog
+          isOpen={isUpdateDialogOpen}
+          onClose={() => {
+            setIsUpdateDialogOpen(false);
+            setSelectedCaseForUpdate(null);
+          }}
+          caseToUpdate={selectedCaseForUpdate}
+          currentUser={user as AuthUser} // user is checked for advocate role, so it should be AuthUser
+          onHearingUpdated={handleHearingUpdated}
+        />
       )}
     </div>
   );

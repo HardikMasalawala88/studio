@@ -1,8 +1,8 @@
 
 "use server";
-import type { Case, CaseFormValues, Note, CaseDocument } from './types';
-import { CASE_STATUSES, USER_ROLES, type UserRole } from './constants';
-import { getUsers, getUserById } from './userService'; // Import user service functions
+import type { Case, CaseFormValues, Note, CaseDocument, HearingEntry, AuthUser } from './types';
+import { CASE_STATUSES, USER_ROLES, type UserRole, ALL_CASE_STATUSES } from './constants';
+import { getUsers, getUserById } from './userService';
 
 const today = new Date();
 const todayAt = (hours: number, minutes: number = 0): Date => {
@@ -16,11 +16,11 @@ let MOCK_CASES: Case[] = [
     caseId: 'case-001',
     title: 'Personal Injury Claim - John Doe',
     description: 'Claim regarding a slip and fall incident at a local supermarket. Seeking compensation for medical expenses and lost wages.',
-    hearingDate: new Date('2024-09-15T10:00:00Z'), // Future date
+    hearingDate: new Date('2024-09-15T10:00:00Z'),
     status: CASE_STATUSES.UPCOMING,
-    advocateId: 'advocate1', // Alice Advocate
+    advocateId: 'advocate1', 
     advocateName: 'Alice Advocate',
-    clientId: 'client1', // Bob Client
+    clientId: 'client1', 
     clientName: 'Bob Client',
     documents: [
         { name: 'Medical Report.pdf', url: '#', uploadedAt: new Date('2024-07-01T10:00:00Z') },
@@ -30,13 +30,16 @@ let MOCK_CASES: Case[] = [
       { message: 'Initial consultation held. Client seems to have a strong case.', by: 'advocate1', byName: 'Alice Advocate', at: new Date('2024-07-01T11:00:00Z') },
       { message: 'Gathered all necessary medical documents.', by: 'advocate1', byName: 'Alice Advocate', at: new Date('2024-07-05T15:00:00Z') },
     ],
+    hearingHistory: [
+        { hearingDate: new Date('2024-07-15T10:00:00Z'), status: CASE_STATUSES.UPCOMING, notes: "Initial hearing scheduled.", updatedBy: 'advocate1', updatedByName: 'Alice Advocate', updatedAt: new Date('2024-07-01T09:00:00Z') }
+    ],
     createdOn: new Date('2024-07-01T09:00:00Z'),
   },
   {
     caseId: 'case-002',
     title: 'Contract Dispute - Acme Corp',
     description: 'Dispute over non-payment for services rendered as per contract dated 2023-05-10.',
-    hearingDate: new Date('2024-08-20T14:30:00Z'), // Future date
+    hearingDate: new Date('2024-08-20T14:30:00Z'),
     status: CASE_STATUSES.UPCOMING,
     advocateId: 'advocate1',
     advocateName: 'Alice Advocate',
@@ -44,54 +47,11 @@ let MOCK_CASES: Case[] = [
     clientName: 'Acme Corp Representative',
     documents: [{ name: 'Contract.pdf', url: '#', uploadedAt: new Date() }],
     notes: [{ message: 'Filed initial complaint.', by: 'advocate1', byName: 'Alice Advocate', at: new Date() }],
+    hearingHistory: [
+        { hearingDate: new Date('2024-06-20T14:30:00Z'), status: CASE_STATUSES.UPCOMING, notes: "First hearing date set.", updatedBy: 'advocate1', updatedByName: 'Alice Advocate', updatedAt: new Date('2024-06-15T10:00:00Z') }
+    ],
     createdOn: new Date('2024-06-15T10:00:00Z'),
   },
-  {
-    caseId: 'case-003',
-    title: 'Real Estate Litigation - Smith Estate',
-    description: 'Boundary dispute with neighboring property. Ongoing for several months.',
-    hearingDate: new Date('2024-07-25T09:00:00Z'), // Past date
-    status: CASE_STATUSES.ON_HOLD,
-    advocateId: 'advocate-other',
-    advocateName: 'Charles Xavier',
-    clientId: 'client1', // Bob Client
-    clientName: 'Bob Client',
-    documents: [],
-    notes: [{ message: 'Mediation scheduled.', by: 'advocate-other', byName: 'Charles Xavier', at: new Date() }],
-    createdOn: new Date('2024-03-10T11:00:00Z'),
-  },
-  {
-    caseId: 'case-004',
-    title: 'Family Law - Custody Agreement',
-    description: 'Negotiating custody terms for minor children.',
-    hearingDate: new Date('2023-12-01T11:00:00Z'), // Past date, closed
-    status: CASE_STATUSES.CLOSED,
-    advocateId: 'advocate1',
-    advocateName: 'Alice Advocate',
-    clientId: 'client-family',
-    clientName: 'Jane Family',
-    documents: [{ name: 'Final Agreement.pdf', url: '#', uploadedAt: new Date() }],
-    notes: [{ message: 'Agreement reached and signed by both parties.', by: 'advocate1', byName: 'Alice Advocate', at: new Date() }],
-    createdOn: new Date('2023-09-01T14:00:00Z'),
-  },
-  {
-    caseId: 'case-today-001',
-    title: 'Urgent Injunction Hearing - Leo Lanister',
-    description: 'Seeking an urgent injunction against unauthorized use of intellectual property.',
-    hearingDate: todayAt(9, 30),
-    status: CASE_STATUSES.UPCOMING,
-    advocateId: 'advocate1',
-    advocateName: 'Alice Advocate',
-    clientId: 'client-leo',
-    clientName: 'Leo Lanister',
-    documents: [{ name: 'EvidenceBundle.pdf', url: '#', uploadedAt: new Date() }],
-    notes: [
-        { message: 'Client call confirmed urgency.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(8,0) },
-        { message: 'Drafted injunction application.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(8,45) },
-    ],
-    createdOn: new Date(new Date().setDate(new Date().getDate() - 1)),
-  },
-   // --- Sample Cases for Today (for advocate1) ---
   {
     caseId: 'case-today-001',
     title: 'Urgent Flight Hearing - Leo Lanister',
@@ -107,7 +67,10 @@ let MOCK_CASES: Case[] = [
         { message: 'Client call confirmed urgency.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(8,0) },
         { message: 'Drafted Flight application.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(8,45) },
     ],
-    createdOn: new Date(today.setDate(today.getDate() - 1)), // Created yesterday
+    hearingHistory: [
+        { hearingDate: todayAt(9, 30), status: CASE_STATUSES.UPCOMING, notes: "Urgent hearing scheduled for today.", updatedBy: 'advocate1', updatedByName: 'Alice Advocate', updatedAt: new Date(new Date().setDate(new Date().getDate() -1))}
+    ],
+    createdOn: new Date(new Date().setDate(new Date().getDate() - 1)), 
   },
   {
     caseId: 'case-today-002',
@@ -124,38 +87,10 @@ let MOCK_CASES: Case[] = [
         { message: 'Reviewed police report.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(9,0) },
         { message: 'Prepared arguments for bail.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(10,15) },
     ],
-    createdOn: new Date(new Date().setDate(new Date().getDate() - 2)),
-  },
-  {
-    caseId: 'case-today-003',
-    title: 'Final Submission - Mike Mason',
-    description: 'Presenting final arguments in a civil suit.',
-    hearingDate: todayAt(15, 0),
-    status: CASE_STATUSES.UPCOMING,
-    advocateId: 'advocate1',
-    advocateName: 'Alice Advocate',
-    clientId: 'client-mike',
-    clientName: 'Mike Mason',
-    documents: [{ name: 'FinalPleadings.docx', url: '#', uploadedAt: new Date() }],
-    notes: [
-        { message: 'All evidence submitted.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(10,0) },
-        { message: 'Final review of arguments completed.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(14,0) },
+    hearingHistory: [
+         { hearingDate: todayAt(11, 0), status: CASE_STATUSES.UPCOMING, notes: "Bail hearing scheduled.", updatedBy: 'advocate1', updatedByName: 'Alice Advocate', updatedAt: new Date(new Date().setDate(new Date().getDate() -2))}
     ],
-    createdOn: new Date(new Date().setDate(new Date().getDate() - 30)),
-  },
-  {
-    caseId: 'case-today-004-other-advocate',
-    title: 'Arbitration Session - Gamma Corp',
-    description: 'Attending arbitration for Gamma Corp.',
-    hearingDate: todayAt(10, 0),
-    status: CASE_STATUSES.UPCOMING,
-    advocateId: 'advocate-other', 
-    advocateName: 'Charles Xavier',
-    clientId: 'client-gamma',
-    clientName: 'Gamma Corp CEO',
-    documents: [],
-    notes: [{ message: 'Prepared for arbitration.', by: 'advocate-other', byName: 'Charles Xavier', at: new Date() }],
-    createdOn: new Date(new Date().setDate(new Date().getDate() - 5)),
+    createdOn: new Date(new Date().setDate(new Date().getDate() - 2)),
   },
 ];
 
@@ -178,11 +113,20 @@ export async function getCaseById(caseId: string): Promise<Case | undefined> {
   return MOCK_CASES.find(c => c.caseId === caseId);
 }
 
-export async function createCase(caseData: CaseFormValues, advocateId: string, clientId: string): Promise<Case> {
+export async function createCase(caseData: CaseFormValues, advocateId: string, clientId: string, currentUser: AuthUser): Promise<Case> {
   await new Promise(resolve => setTimeout(resolve, 700));
   
   const advocateUser = await getUserById(advocateId);
   const clientUser = await getUserById(clientId);
+
+  const initialHearingEntry: HearingEntry = {
+    hearingDate: caseData.hearingDate,
+    status: caseData.status,
+    notes: "Case created and first hearing scheduled.",
+    updatedBy: currentUser.uid,
+    updatedByName: `${currentUser.firstName} ${currentUser.lastName}`,
+    updatedAt: new Date(),
+  };
 
   const newCase: Case = {
     ...caseData,
@@ -193,22 +137,27 @@ export async function createCase(caseData: CaseFormValues, advocateId: string, c
     clientName: clientUser ? `${clientUser.firstName} ${clientUser.lastName}` : "Unknown Client",
     documents: [],
     notes: [],
+    hearingHistory: [initialHearingEntry],
     createdOn: new Date(),
   };
   MOCK_CASES.unshift(newCase);
   return newCase;
 }
 
-export async function updateCase(caseId: string, caseData: Partial<CaseFormValues>): Promise<Case | undefined> {
+export async function updateCase(caseId: string, caseData: Partial<CaseFormValues>, currentUser: AuthUser): Promise<Case | undefined> {
   await new Promise(resolve => setTimeout(resolve, 700));
   const caseIndex = MOCK_CASES.findIndex(c => c.caseId === caseId);
   if (caseIndex > -1) {
     const currentCase = MOCK_CASES[caseIndex];
+    
+    const oldHearingDate = currentCase.hearingDate;
+    const oldStatus = currentCase.status;
+
     MOCK_CASES[caseIndex] = { ...currentCase, ...caseData } as Case;
     
     if (typeof caseData.hearingDate === 'string') {
         MOCK_CASES[caseIndex].hearingDate = new Date(caseData.hearingDate);
-    } else if (caseData.hearingDate) {
+    } else if (caseData.hearingDate instanceof Date) {
         MOCK_CASES[caseIndex].hearingDate = caseData.hearingDate;
     }
 
@@ -220,6 +169,26 @@ export async function updateCase(caseId: string, caseData: Partial<CaseFormValue
         const clientUser = await getUserById(caseData.clientId);
         MOCK_CASES[caseIndex].clientName = clientUser ? `${clientUser.firstName} ${clientUser.lastName}` : "Unknown Client";
     }
+
+    // If primary hearing date or status changed via general edit, update the latest history entry or add a new one.
+    // This logic could be complex. For now, if next hearing date or status changes, create a new history entry.
+    const newHearingDate = MOCK_CASES[caseIndex].hearingDate;
+    const newStatus = MOCK_CASES[caseIndex].status;
+
+    if (newHearingDate.getTime() !== oldHearingDate.getTime() || newStatus !== oldStatus) {
+        const historyEntry: HearingEntry = {
+            hearingDate: newHearingDate,
+            status: newStatus,
+            notes: `Case details updated. Next hearing: ${newHearingDate.toLocaleDateString()}. Status: ${newStatus}.`,
+            updatedBy: currentUser.uid,
+            updatedByName: `${currentUser.firstName} ${currentUser.lastName}`,
+            updatedAt: new Date(),
+        };
+        MOCK_CASES[caseIndex].hearingHistory.push(historyEntry);
+        // Sort history by date just in case
+        MOCK_CASES[caseIndex].hearingHistory.sort((a,b) => new Date(a.hearingDate).getTime() - new Date(b.hearingDate).getTime());
+    }
+    
     return MOCK_CASES[caseIndex];
   }
   return undefined;
@@ -265,9 +234,60 @@ export async function getDailyHearings(advocateId: string, date: Date): Promise<
     c.advocateId === advocateId &&
     new Date(c.hearingDate) >= queryDateStart &&
     new Date(c.hearingDate) <= queryDateEnd &&
-    c.status === CASE_STATUSES.UPCOMING
+    c.status !== CASE_STATUSES.CLOSED // Don't show closed cases for daily report action
   ).sort((a,b) => new Date(a.hearingDate).getTime() - new Date(b.hearingDate).getTime());
 }
+
+export async function recordHearingOutcomeAndSetNext(
+  caseId: string,
+  todaysHearingDate: Date, // The date of the hearing being recorded
+  currentHearingOutcome: { status: CaseStatus; notes?: string },
+  nextHearingDetails: { date: Date; status: CaseStatus } | null, // Null if case is closed
+  currentUser: AuthUser
+): Promise<Case | undefined> {
+  await new Promise(resolve => setTimeout(resolve, 700));
+  const caseIndex = MOCK_CASES.findIndex(c => c.caseId === caseId);
+  if (caseIndex === -1) return undefined;
+
+  const caseToUpdate = MOCK_CASES[caseIndex];
+
+  const historyEntry: HearingEntry = {
+    hearingDate: todaysHearingDate, // Use the actual date of the hearing
+    status: currentHearingOutcome.status,
+    notes: currentHearingOutcome.notes || `Hearing on ${todaysHearingDate.toLocaleDateString()} concluded with status: ${currentHearingOutcome.status}`,
+    updatedBy: currentUser.uid,
+    updatedByName: `${currentUser.firstName} ${currentUser.lastName}`,
+    updatedAt: new Date(),
+  };
+  caseToUpdate.hearingHistory.push(historyEntry);
+
+  if (nextHearingDetails) {
+    caseToUpdate.hearingDate = nextHearingDetails.date;
+    caseToUpdate.status = nextHearingDetails.status;
+    
+    // Also add a history entry for scheduling the next hearing if it's different from the outcome status
+    if (nextHearingDetails.status !== currentHearingOutcome.status || nextHearingDetails.date.getTime() !== todaysHearingDate.getTime()) {
+        const nextSchedulingEntry: HearingEntry = {
+            hearingDate: nextHearingDetails.date,
+            status: nextHearingDetails.status,
+            notes: `Next hearing scheduled for ${nextHearingDetails.date.toLocaleDateString()}. Case status set to ${nextHearingDetails.status}.`,
+            updatedBy: currentUser.uid,
+            updatedByName: `${currentUser.firstName} ${currentUser.lastName}`,
+            updatedAt: new Date(new Date().getTime() + 1), // ensure slightly different timestamp
+        };
+        caseToUpdate.hearingHistory.push(nextSchedulingEntry);
+    }
+
+  } else {
+    // Case is being closed or put on hold without a specific next date
+    caseToUpdate.status = currentHearingOutcome.status; 
+  }
+  
+  caseToUpdate.hearingHistory.sort((a, b) => new Date(a.hearingDate).getTime() - new Date(b.hearingDate).getTime());
+  MOCK_CASES[caseIndex] = caseToUpdate;
+  return caseToUpdate;
+}
+
 
 export async function getMockAdvocates() {
     const allUsers = await getUsers();
@@ -281,5 +301,3 @@ export async function getMockClients() {
         .filter(u => u.role === USER_ROLES.CLIENT)
         .map(u => ({ id: u.uid, name: `${u.firstName} ${u.lastName}` }));
 }
-
-    

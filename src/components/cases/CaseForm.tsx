@@ -61,12 +61,12 @@ export function CaseForm({ initialData }: CaseFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: initialData ? {
       ...initialData,
-      hearingDate: new Date(initialData.hearingDate), // Ensure it's a Date object
+      hearingDate: new Date(initialData.hearingDate), 
     } : {
       title: "",
       description: "",
       hearingDate: new Date(),
-      status: ALL_CASE_STATUSES[0], // Default to 'Upcoming'
+      status: ALL_CASE_STATUSES[0], 
       advocateId: user?.role === USER_ROLES.ADVOCATE ? user.uid : "",
       clientId: user?.role === USER_ROLES.CLIENT ? user.uid : "",
     },
@@ -74,13 +74,11 @@ export function CaseForm({ initialData }: CaseFormProps) {
 
   useEffect(() => {
     async function fetchUsers() {
-      // In a real app, these would be fetched based on permissions or search
       const fetchedAdvocates = await getMockAdvocates();
       const fetchedClients = await getMockClients();
       setAdvocates(fetchedAdvocates);
       setClients(fetchedClients);
 
-      // Set default advocate/client if user is one and creating new case
       if (!initialData) {
         if (user?.role === USER_ROLES.ADVOCATE && !form.getValues("advocateId")) {
           form.setValue("advocateId", user.uid);
@@ -101,14 +99,13 @@ export function CaseForm({ initialData }: CaseFormProps) {
     setIsLoading(true);
     try {
       if (initialData) {
-        await updateCase(initialData.caseId, values);
+        await updateCase(initialData.caseId, values, user);
         toast({ title: "Case Updated", description: "The case details have been successfully updated." });
         router.push(`/case/${initialData.caseId}`);
       } else {
-        const newCase = await createCase(values, values.advocateId, values.clientId);
+        await createCase(values, values.advocateId, values.clientId, user);
         toast({ title: "Case Created", description: "The new case has been successfully created." });
-        //router.push(`/case/${newCase.caseId}`);
-        router.push('/cases'); // Redirect to cases list page
+        router.push('/cases');
       }
     } catch (error) {
       toast({ title: "Error", description: `Failed to ${initialData ? 'update' : 'create'} case.`, variant: "destructive" });
@@ -152,7 +149,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
             name="hearingDate"
             render={({ field }) => (
                 <FormItem className="flex flex-col">
-                <FormLabel>Hearing Date</FormLabel>
+                <FormLabel>Next Hearing Date</FormLabel>
                 <Popover>
                     <PopoverTrigger asChild>
                     <FormControl>
@@ -187,7 +184,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
             name="status"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>Case Status</FormLabel>
+                <FormLabel>Current Case Status</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                     <SelectTrigger>
@@ -274,5 +271,3 @@ export function CaseForm({ initialData }: CaseFormProps) {
     </Form>
   );
 }
-
-    

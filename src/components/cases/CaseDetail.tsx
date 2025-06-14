@@ -1,7 +1,8 @@
+
 "use client";
 
-import type { Case, CaseDocument, Note } from "@/lib/types";
-import React, { useEffect, useState } from "react"; // Added React import
+import type { Case, CaseDocument, Note, HearingEntry } from "@/lib/types";
+import React, { useEffect, useState } from "react";
 import { getCaseById } from "@/lib/caseService";
 import { useParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -9,15 +10,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CalendarDays, User, Users, FileText, Edit, ArrowLeft, Paperclip, Download } from "lucide-react";
+import { CalendarDays, User, Users, FileText, Edit, ArrowLeft, Paperclip, Download, History, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { DocumentUpload } from "./DocumentUpload";
 import { CaseNotes } from "./CaseNotes";
 import { useAuth } from "@/context/AuthContext";
-import { USER_ROLES }
- from "@/lib/constants";
+import { USER_ROLES } from "@/lib/constants";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function CaseDetail() {
   const params = useParams();
@@ -46,11 +47,11 @@ export function CaseDetail() {
   }, [caseId]);
 
   const handleNoteAdded = (newNote: Note) => {
-    setCaseData(prev => prev ? { ...prev, notes: [...prev.notes, newNote] } : null);
+    setCaseData(prev => prev ? { ...prev, notes: [...(prev.notes || []), newNote] } : null);
   };
 
   const handleDocumentUploaded = (newDocument: CaseDocument) => {
-    setCaseData(prev => prev ? { ...prev, documents: [...prev.documents, newDocument] } : null);
+    setCaseData(prev => prev ? { ...prev, documents: [...(prev.documents || []), newDocument] } : null);
   };
 
   if (loading) {
@@ -68,6 +69,7 @@ export function CaseDetail() {
                 <Skeleton className="h-60 w-full" />
                 <Skeleton className="h-60 w-full" />
             </div>
+             <Skeleton className="h-60 w-full" />
         </div>
     );
   }
@@ -91,11 +93,11 @@ export function CaseDetail() {
     <div className="space-y-6">
       <PageHeader
         title={caseData.title}
-        description={`Case ID: ${caseData.caseId}`}
+        description={`Case ID: ${caseData.caseId} | Current Status: ${caseData.status}`}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => router.back()}>
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to List
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
             {canEdit && (
               <Button asChild>
@@ -109,7 +111,7 @@ export function CaseDetail() {
       />
 
       <div className="grid md:grid-cols-3 gap-4">
-        <InfoCard icon={<CalendarDays />} title="Hearing Date" value={format(new Date(caseData.hearingDate), "PPPp")} />
+        <InfoCard icon={<CalendarDays />} title="Next Hearing Date" value={format(new Date(caseData.hearingDate), "PPPp")} />
         <InfoCard icon={<User />} title="Client" value={caseData.clientName || caseData.clientId} />
         <InfoCard icon={<Users />} title="Advocate" value={caseData.advocateName || caseData.advocateId} />
       </div>
@@ -117,17 +119,46 @@ export function CaseDetail() {
       <Card>
         <CardHeader>
           <CardTitle>Case Overview</CardTitle>
-          <div className="flex justify-between items-center">
-            <CardDescription>Created on: {format(new Date(caseData.createdOn), "PPP")}</CardDescription>
-            <Badge variant={caseData.status === "Upcoming" ? "default" : caseData.status === "On Hold" ? "secondary" : "outline"}>
-              {caseData.status}
-            </Badge>
-          </div>
+          <CardDescription>Created on: {format(new Date(caseData.createdOn), "PPP")}</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">{caseData.description}</p>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+            <CardTitle className="flex items-center"><History className="mr-2 h-5 w-5 text-primary"/>Case Hearing History</CardTitle>
+            <CardDescription>Chronological record of hearings and status updates.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            {caseData.hearingHistory && caseData.hearingHistory.length > 0 ? (
+                <ScrollArea className="h-[300px] w-full">
+                    <div className="space-y-4 pr-4">
+                    {caseData.hearingHistory.slice().reverse().map((entry, index) => (
+                        <div key={index} className="p-3 rounded-md bg-muted/50 shadow-sm">
+                            <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-2">
+                                    <CalendarDays className="h-4 w-4 text-primary" />
+                                    <span className="font-semibold">{format(new Date(entry.hearingDate), "PPP")}</span>
+                                    <Badge variant={entry.status === "Upcoming" ? "default" : entry.status === "On Hold" ? "secondary" : "outline"}>{entry.status}</Badge>
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                    Logged: {format(new Date(entry.updatedAt), "Pp")}
+                                </span>
+                            </div>
+                            {entry.notes && <p className="text-sm mt-1 whitespace-pre-wrap border-l-2 border-primary/50 pl-2 py-1">{entry.notes}</p>}
+                            <p className="text-xs text-muted-foreground mt-1">Updated by: {entry.updatedByName}</p>
+                        </div>
+                    ))}
+                    </div>
+                </ScrollArea>
+            ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">No hearing history recorded yet.</p>
+            )}
+        </CardContent>
+      </Card>
+
 
       <div className="grid md:grid-cols-2 gap-6">
         <Card>
@@ -136,7 +167,7 @@ export function CaseDetail() {
                 <CardDescription>Attached files related to this case.</CardDescription>
             </CardHeader>
             <CardContent>
-                {caseData.documents.length > 0 ? (
+                {caseData.documents && caseData.documents.length > 0 ? (
                 <ul className="space-y-2">
                     {caseData.documents.map((doc, index) => (
                     <li key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
@@ -144,7 +175,6 @@ export function CaseDetail() {
                             <Paperclip className="h-4 w-4 text-primary" />
                             <span>{doc.name}</span>
                         </div>
-                        {/* In a real app, doc.url would be a Firebase Storage URL */}
                         <Button variant="ghost" size="sm" asChild disabled={doc.url === "#"}>
                            <a href={doc.url} target="_blank" rel="noopener noreferrer" download={doc.name}>
                              <Download className="h-4 w-4 mr-1" /> Download
@@ -164,7 +194,7 @@ export function CaseDetail() {
             )}
         </Card>
         
-        <CaseNotes caseId={caseData.caseId} initialNotes={caseData.notes} onNoteAdded={handleNoteAdded} />
+        <CaseNotes caseId={caseData.caseId} initialNotes={caseData.notes || []} onNoteAdded={handleNoteAdded} />
       </div>
     </div>
   );
@@ -189,4 +219,3 @@ function InfoCard({ icon, title, value }: InfoCardProps) {
         </Card>
     );
 }
-
