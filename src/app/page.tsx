@@ -42,7 +42,7 @@ export default function LandingPage() {
                     Transform Your Legal Practice with {APP_NAME}
                   </h1>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl lg:text-lg xl:text-xl">
-                    The AI-powered platform designed to streamline case management, enhance client collaboration, and elevate your legal strategy.
+                    The <s>AI-powered</s> platform designed to streamline case management, enhance client collaboration, and elevate your legal strategy.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">

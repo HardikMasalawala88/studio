@@ -109,6 +109,33 @@ body {
   }
 }
 
+/* Custom strikethrough style */
+s {
+  text-decoration: none; /* Remove default strikethrough */
+  position: relative;
+  display: inline-block;
+}
+
+s::before {
+  content: "";
+  position: absolute;
+  left: -0.1em;
+  right: -0.1em;
+  top: 50%;
+  height: 0.12em; /* Adjust thickness of the line */
+  background-color: #ff6b6b; /* Reddish color for the line */
+  transform: translateY(-50%) rotate(-2deg); /* Slight rotation for effect */
+  border-radius: 0.05em;
+  transition: all 0.2s ease-out; /* Optional: add a subtle transition */
+}
+
+/* Optional: Hover effect for the strikethrough */
+s:hover::before {
+  transform: translateY(-50%) rotate(2deg); /* Change rotation on hover */
+  background-color: #e05252; /* Darken color on hover */
+}
+
+
 @media print {
   body {
     -webkit-print-color-adjust: exact;
