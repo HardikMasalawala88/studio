@@ -1,6 +1,7 @@
 
 "use client";
 
+import React from "react"; // Added React import
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -267,4 +268,3 @@ export function UpdateHearingDialog({ isOpen, onClose, caseToUpdate, currentUser
     </Dialog>
   );
 }
-
