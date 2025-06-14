@@ -1,7 +1,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, Briefcase, Users, FileText, Zap, Brain, MessageSquare, Sparkles, ShieldCheck, Award, Gift } from 'lucide-react'; // Added Gift
+import { CheckCircle, Briefcase, Users, FileText, Zap, Brain, MessageSquare, Sparkles, ShieldCheck, Award, Gift } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { APP_NAME, ALL_SUBSCRIPTION_PLANS } from '@/lib/constants';
@@ -9,7 +9,8 @@ import type { SubscriptionPlan } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 export default function LandingPage() {
-  const displayPlans = ALL_SUBSCRIPTION_PLANS; // Show all plans, including trial
+  const trialPlan = ALL_SUBSCRIPTION_PLANS.find(p => p.isTrial === true);
+  const paidPlans = ALL_SUBSCRIPTION_PLANS.filter(p => p.isTrial !== true);
   const featuredPlanId = 'paid_6m_500inr'; // For "Best Value" highlight
 
   return (
@@ -154,11 +155,31 @@ export default function LandingPage() {
                 </p>
               </div>
             </div>
-            <div className="mx-auto grid max-w-6xl items-stretch gap-8 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {displayPlans.map((plan) => (
-                <PricingCard key={plan.id} plan={plan} isFeatured={plan.id === featuredPlanId && !plan.isTrial} />
-              ))}
-            </div>
+
+            {/* Row 1: Free Trial Plan */}
+            {trialPlan && (
+              <div className="flex justify-center mb-10 md:mb-12">
+                <div className="w-full max-w-md">
+                  <PricingCard
+                    key={trialPlan.id}
+                    plan={trialPlan}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Row 2: Paid Plans */}
+            {paidPlans.length > 0 && (
+              <div className="mx-auto grid max-w-6xl items-stretch gap-8 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {paidPlans.map((plan) => (
+                  <PricingCard
+                    key={plan.id}
+                    plan={plan}
+                    isFeatured={plan.id === featuredPlanId}
+                  />
+                ))}
+              </div>
+            )}
              <p className="text-center text-sm text-muted-foreground mt-12">
               All transactions are in INR. Services are intended for advocates practicing in India.
             </p>
@@ -309,3 +330,4 @@ function PricingCard({ plan, isFeatured = false }: PricingCardProps) {
     </Card>
   );
 }
+
