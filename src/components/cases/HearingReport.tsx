@@ -121,9 +121,9 @@ export function HearingReport() {
           if (document.body.contains(iframe)) {
              document.body.removeChild(iframe);
           }
-        }, 1500); 
+        }, 1500); // Delay before removing iframe
       }
-    }, 500); // Increased delay before printing
+    }, 1000); // Increased delay before printing
   };
   
   if (loading) {
@@ -173,10 +173,11 @@ export function HearingReport() {
           <table className="hidden print:table w-full printable-report-table">
             <thead>
               <tr>
-                <th>Time</th>
+                <th>Time (Today's Hearing)</th>
                 <th>Case Title</th>
                 <th>Client Name</th>
-                <th>Status</th>
+                <th>Current Case Status</th>
+                <th>Next Hearing Date</th>
                 <th>Brief Notes (Last 2 from Hearing History)</th>
               </tr>
             </thead>
@@ -187,6 +188,7 @@ export function HearingReport() {
                   <td>{hearing.title}</td>
                   <td>{hearing.clientName}</td>
                   <td>{hearing.status}</td>
+                  <td></td> {/* Blank cell for Next Hearing Date */}
                   <td>
                     {hearing.hearingHistory && hearing.hearingHistory.length > 0 ? (
                         <ul>
@@ -254,3 +256,4 @@ export function HearingReport() {
     </div>
   );
 }
+
