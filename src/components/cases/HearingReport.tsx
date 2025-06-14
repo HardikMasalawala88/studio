@@ -79,10 +79,10 @@ export function HearingReport() {
     }
 
     frameDoc.open();
-    frameDoc.write(\`
+    frameDoc.write(`
       <html>
         <head>
-          <title>Daily Hearing Report - \${format(today, "PPP")}</title>
+          <title>Daily Hearing Report - ${format(today, "PPP")}</title>
           <style>
             body { font-family: 'Inter', Arial, sans-serif; margin: 20px; color: #333333; }
             table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 10pt; }
@@ -96,15 +96,15 @@ export function HearingReport() {
         </head>
         <body>
           <div class="print-header">
-            <h1>\${APP_NAME}</h1>
+            <h1>${APP_NAME}</h1>
             <h2>Daily Hearing Report</h2>
-            <p>Date: \${format(today, "PPP")}</p>
-            <p>Advocate: \${user.firstName} \${user.lastName}</p>
+            <p>Date: ${format(today, "PPP")}</p>
+            <p>Advocate: ${user.firstName} ${user.lastName}</p>
           </div>
-          \${printContents}
+          ${printContents}
         </body>
       </html>
-    \`);
+    `);
     frameDoc.close();
 
     setTimeout(() => {
