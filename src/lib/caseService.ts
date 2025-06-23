@@ -1,8 +1,9 @@
 
 "use server";
-import type { Case, CaseFormValues, Note, CaseDocument, HearingEntry, AuthUser } from './types';
+import type { Case, CaseFormValues, Note, CaseDocument, HearingEntry, AuthUser, Task } from './types';
 import { CASE_STATUSES, USER_ROLES, type UserRole, ALL_CASE_STATUSES } from './constants';
-import { getUsers, getUserById } from './userService';
+import { getUsers, getUserById, getMockClients, getMockAdvocates } from './userService';
+import apiFetch from './api-client';
 
 const today = new Date();
 const todayAt = (hours: number, minutes: number = 0): Date => {
@@ -11,6 +12,8 @@ const todayAt = (hours: number, minutes: number = 0): Date => {
     return d;
 };
 
+// MOCK_CASES will now serve as a supplementary source for data not provided by the API
+// e.g., documents, notes, hearingHistory, tasks per instructions
 let MOCK_CASES: Case[] = [
   {
     caseId: 'case-001',
@@ -33,9 +36,10 @@ let MOCK_CASES: Case[] = [
     hearingHistory: [
         { hearingDate: new Date('2024-07-15T10:00:00Z'), status: CASE_STATUSES.UPCOMING, notes: "Initial hearing scheduled.", updatedBy: 'advocate1', updatedByName: 'Alice Advocate', updatedAt: new Date('2024-07-01T09:00:00Z') }
     ],
+    tasks: [],
     createdOn: new Date('2024-07-01T09:00:00Z'),
   },
-  {
+   {
     caseId: 'case-002',
     title: 'Contract Dispute - Acme Corp',
     description: 'Dispute over non-payment for services rendered as per contract dated 2023-05-10.',
@@ -50,178 +54,159 @@ let MOCK_CASES: Case[] = [
     hearingHistory: [
         { hearingDate: new Date('2024-06-20T14:30:00Z'), status: CASE_STATUSES.UPCOMING, notes: "First hearing date set.", updatedBy: 'advocate1', updatedByName: 'Alice Advocate', updatedAt: new Date('2024-06-15T10:00:00Z') }
     ],
+    tasks: [],
     createdOn: new Date('2024-06-15T10:00:00Z'),
-  },
-  {
-    caseId: 'case-today-001',
-    title: 'Urgent Flight Hearing - Leo Lanister',
-    description: 'Seeking an urgent Flight against unauthorized access of intellectual property.',
-    hearingDate: todayAt(9, 30),
-    status: CASE_STATUSES.UPCOMING,
-    advocateId: 'advocate1',
-    advocateName: 'Alice Advocate',
-    clientId: 'client-leo',
-    clientName: 'Leo Lanister',
-    documents: [{ name: 'EvidenceBundle.pdf', url: '#', uploadedAt: new Date() }],
-    notes: [
-        { message: 'Client call confirmed urgency.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(8,0) },
-        { message: 'Drafted Flight application.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(8,45) },
-    ],
-    hearingHistory: [
-        { hearingDate: todayAt(9, 30), status: CASE_STATUSES.UPCOMING, notes: "Urgent hearing scheduled for today.", updatedBy: 'advocate1', updatedByName: 'Alice Advocate', updatedAt: new Date(new Date().setDate(new Date().getDate() -1))}
-    ],
-    createdOn: new Date(new Date().setDate(new Date().getDate() - 1)), 
-  },
-  {
-    caseId: 'case-today-002',
-    title: 'Bail Application - Sara Star',
-    description: 'Application for bail following recent arrest.',
-    hearingDate: todayAt(11, 0),
-    status: CASE_STATUSES.UPCOMING,
-    advocateId: 'advocate1',
-    advocateName: 'Alice Advocate',
-    clientId: 'client-sara',
-    clientName: 'Sara Star',
-    documents: [],
-    notes: [
-        { message: 'Reviewed police report.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(9,0) },
-        { message: 'Prepared arguments for bail.', by: 'advocate1', byName: 'Alice Advocate', at: todayAt(10,15) },
-    ],
-    hearingHistory: [
-         { hearingDate: todayAt(11, 0), status: CASE_STATUSES.UPCOMING, notes: "Bail hearing scheduled.", updatedBy: 'advocate1', updatedByName: 'Alice Advocate', updatedAt: new Date(new Date().setDate(new Date().getDate() -2))}
-    ],
-    createdOn: new Date(new Date().setDate(new Date().getDate() - 2)),
   },
 ];
 
+
+// Helper to merge API case data with mock data
+const mergeWithMockCaseData = async (apiCase: any): Promise<Case> => {
+    // The API doesn't return the caseId in the body, so we have to assume we have it.
+    // This is a significant limitation of the API design.
+    // For list view, the API has to be updated to return the ID.
+    // For now, we assume the API case object includes an 'id' or 'caseId' field.
+    const caseId = apiCase.id || apiCase.caseId; // Adjust if API uses a different key
+    const mockCase = MOCK_CASES.find(c => c.caseId === caseId);
+
+    const advocate = await getUserById(apiCase.AdvocateId);
+    const client = await getUserById(apiCase.ClientId);
+
+    return {
+        caseId: caseId,
+        title: apiCase.CaseTitle,
+        description: apiCase.CaseDetail,
+        hearingDate: new Date(apiCase.HearingDate),
+        status: apiCase.CaseStatus,
+        advocateId: apiCase.AdvocateId,
+        clientId: apiCase.ClientId,
+        createdOn: new Date(apiCase.createdAt),
+        advocateName: advocate ? `${advocate.firstName} ${advocate.lastName}` : "N/A",
+        clientName: client ? `${client.firstName} ${client.lastName}` : "N/A",
+        // Merge mock data for features not in API
+        documents: mockCase?.documents || [],
+        notes: mockCase?.notes || [],
+        hearingHistory: mockCase?.hearingHistory || [],
+        tasks: mockCase?.tasks || [],
+    };
+};
+
 export async function getCases(userId: string, userRole: UserRole): Promise<Case[]> {
-  await new Promise(resolve => setTimeout(resolve, 500)); 
-  if (userRole === USER_ROLES.SUPER_ADMIN) {
-    return MOCK_CASES;
-  }
-  if (userRole === USER_ROLES.ADVOCATE) {
-    return MOCK_CASES.filter(c => c.advocateId === userId);
-  }
-  if (userRole === USER_ROLES.CLIENT) {
-    return MOCK_CASES.filter(c => c.clientId === userId);
-  }
-  return [];
+    // API only provides a general /advocate/cases endpoint.
+    // We'll use it for advocates and filter for clients/admins on the frontend side for now.
+    if (userRole === USER_ROLES.SUPER_ADMIN || userRole === USER_ROLES.ADVOCATE) {
+      try {
+          const apiCases = await apiFetch('/advocate/cases');
+          if (!Array.isArray(apiCases)) return [];
+
+          const mergedCases = await Promise.all(apiCases.map(c => mergeWithMockCaseData(c)));
+
+          // The API doesn't allow filtering by user, so we do it here.
+          if (userRole === USER_ROLES.ADVOCATE) {
+              return mergedCases.filter(c => c.advocateId === userId);
+          }
+          return mergedCases;
+
+      } catch (error) {
+          console.error("Failed to fetch cases from API, falling back to mock data.", error);
+          // Fallback to mock data for all roles if API fails
+          return MOCK_CASES;
+      }
+    }
+
+    // For clients, filter the full mock list as there is no specific client endpoint
+    const allCases = await getCases(userId, USER_ROLES.SUPER_ADMIN); // Get all cases
+    return allCases.filter(c => c.clientId === userId);
 }
 
 export async function getCaseById(caseId: string): Promise<Case | undefined> {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return MOCK_CASES.find(c => c.caseId === caseId);
+  try {
+      const apiCase = await apiFetch(`/advocate/cases/${caseId}`);
+      return await mergeWithMockCaseData({ ...apiCase, caseId: caseId }); // Pass id to merger
+  } catch (error) {
+      console.error(`Failed to fetch case ${caseId} from API, falling back to mock data.`, error);
+      return MOCK_CASES.find(c => c.caseId === caseId);
+  }
 }
 
 export async function createCase(caseData: CaseFormValues, advocateId: string, clientId: string, currentUser: AuthUser): Promise<Case> {
-  await new Promise(resolve => setTimeout(resolve, 700));
-  
-  const advocateUser = await getUserById(advocateId);
-  const clientUser = await getUserById(clientId);
+    const apiPayload = {
+      ClientId: clientId,
+      AdvocateId: advocateId,
+      CaseTitle: caseData.title,
+      CaseDetail: caseData.description,
+      // API requires CaseNumber and CourtLocation, providing defaults
+      CaseNumber: `CN-${Date.now()}`,
+      CourtLocation: 'Default Court',
+      HearingDate: caseData.hearingDate.toISOString(),
+      FilingDate: new Date().toISOString(),
+      CaseStatus: caseData.status,
+    };
 
-  const initialHearingEntry: HearingEntry = {
-    hearingDate: caseData.hearingDate,
-    status: caseData.status,
-    notes: "Case created and first hearing scheduled.",
-    updatedBy: currentUser.uid,
-    updatedByName: `${currentUser.firstName} ${currentUser.lastName}`,
-    updatedAt: new Date(),
-  };
+    await apiFetch('/advocate/add-case', {
+        method: 'POST',
+        body: JSON.stringify(apiPayload)
+    });
 
-  const newCase: Case = {
-    ...caseData,
-    caseId: `case-${Date.now()}`,
-    advocateId,
-    clientId,
-    advocateName: advocateUser ? `${advocateUser.firstName} ${advocateUser.lastName}` : "Unknown Advocate",
-    clientName: clientUser ? `${clientUser.firstName} ${clientUser.lastName}` : "Unknown Client",
-    documents: [],
-    notes: [],
-    hearingHistory: [initialHearingEntry],
-    createdOn: new Date(),
-  };
-  MOCK_CASES.unshift(newCase);
-  return newCase;
+    // As the API does not return the created case, we'll create a mock version for the UI to update.
+    const newCase: Case = {
+      ...caseData,
+      caseId: `case-${Date.now()}`,
+      advocateId,
+      clientId,
+      createdOn: new Date(),
+      advocateName: (await getUserById(advocateId))?.firstName,
+      clientName: (await getUserById(clientId))?.firstName,
+      documents: [],
+      notes: [],
+      hearingHistory: [],
+      tasks: [],
+    };
+    MOCK_CASES.unshift(newCase);
+    return newCase;
 }
 
 export async function updateCase(caseId: string, caseData: Partial<CaseFormValues>, currentUser: AuthUser): Promise<Case | undefined> {
-  await new Promise(resolve => setTimeout(resolve, 700));
-  const caseIndex = MOCK_CASES.findIndex(c => c.caseId === caseId);
-  if (caseIndex > -1) {
-    const currentCase = MOCK_CASES[caseIndex];
+    const existingCase = await getCaseById(caseId);
+    if(!existingCase) throw new Error("Case not found");
+
+    const apiPayload = {
+      ClientId: caseData.clientId || existingCase.clientId,
+      AdvocateId: caseData.advocateId || existingCase.advocateId,
+      CaseTitle: caseData.title || existingCase.title,
+      CaseDetail: caseData.description || existingCase.description,
+      CaseNumber: `CN-Updated-${Date.now()}`, // Assuming we need to provide this
+      CourtLocation: 'Default Court',
+      HearingDate: (caseData.hearingDate || existingCase.hearingDate).toISOString(),
+      FilingDate: (existingCase.createdOn).toISOString(),
+      CaseStatus: caseData.status || existingCase.status,
+    };
     
-    const oldHearingDate = currentCase.hearingDate;
-    const oldStatus = currentCase.status;
-
-    MOCK_CASES[caseIndex] = { ...currentCase, ...caseData } as Case;
+    await apiFetch(`/advocate/cases/${caseId}`, {
+        method: 'PUT',
+        body: JSON.stringify(apiPayload)
+    });
     
-    if (typeof caseData.hearingDate === 'string') {
-        MOCK_CASES[caseIndex].hearingDate = new Date(caseData.hearingDate);
-    } else if (caseData.hearingDate instanceof Date) {
-        MOCK_CASES[caseIndex].hearingDate = caseData.hearingDate;
+    // In a real scenario, we would invalidate a cache and refetch.
+    // For now, we update the mock data to reflect the change immediately.
+    const mockIndex = MOCK_CASES.findIndex(c => c.caseId === caseId);
+    if(mockIndex > -1) {
+        MOCK_CASES[mockIndex] = { ...MOCK_CASES[mockIndex], ...caseData };
     }
 
-    if (caseData.advocateId && caseData.advocateId !== currentCase.advocateId) {
-        const advocateUser = await getUserById(caseData.advocateId);
-        MOCK_CASES[caseIndex].advocateName = advocateUser ? `${advocateUser.firstName} ${advocateUser.lastName}` : "Unknown Advocate";
-    }
-    if (caseData.clientId && caseData.clientId !== currentCase.clientId) {
-        const clientUser = await getUserById(caseData.clientId);
-        MOCK_CASES[caseIndex].clientName = clientUser ? `${clientUser.firstName} ${clientUser.lastName}` : "Unknown Client";
-    }
-
-    // If primary hearing date or status changed via general edit, update the latest history entry or add a new one.
-    // This logic could be complex. For now, if next hearing date or status changes, create a new history entry.
-    const newHearingDate = MOCK_CASES[caseIndex].hearingDate;
-    const newStatus = MOCK_CASES[caseIndex].status;
-
-    if (newHearingDate.getTime() !== oldHearingDate.getTime() || newStatus !== oldStatus) {
-        const historyEntry: HearingEntry = {
-            hearingDate: newHearingDate,
-            status: newStatus,
-            notes: `Case details updated. Next hearing: ${newHearingDate.toLocaleDateString()}. Status: ${newStatus}.`,
-            updatedBy: currentUser.uid,
-            updatedByName: `${currentUser.firstName} ${currentUser.lastName}`,
-            updatedAt: new Date(),
-        };
-        MOCK_CASES[caseIndex].hearingHistory.push(historyEntry);
-        // Sort history by date just in case
-        MOCK_CASES[caseIndex].hearingHistory.sort((a,b) => new Date(a.hearingDate).getTime() - new Date(b.hearingDate).getTime());
-    }
-    
-    return MOCK_CASES[caseIndex];
-  }
-  return undefined;
+    return await getCaseById(caseId);
 }
 
 export async function deleteCase(caseId: string): Promise<boolean> {
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await apiFetch(`/advocate/cases/${caseId}`, { method: 'DELETE' });
+  
+  // Also remove from mock data
   const initialLength = MOCK_CASES.length;
   MOCK_CASES = MOCK_CASES.filter(c => c.caseId !== caseId);
   return MOCK_CASES.length < initialLength;
 }
 
-export async function addNoteToCase(caseId: string, note: Pick<Note, 'message' | 'by' | 'byName'>): Promise<Note | undefined> {
-  await new Promise(resolve => setTimeout(resolve, 400));
-  const caseToUpdate = MOCK_CASES.find(c => c.caseId === caseId);
-  if (caseToUpdate) {
-    const newNote: Note = { ...note, at: new Date() };
-    caseToUpdate.notes.push(newNote);
-    return newNote;
-  }
-  return undefined;
-}
-
-export async function addDocumentToCase(caseId: string, document: Omit<CaseDocument, 'uploadedAt'>): Promise<CaseDocument | undefined> {
-  await new Promise(resolve => setTimeout(resolve, 600));
-  const caseToUpdate = MOCK_CASES.find(c => c.caseId === caseId);
-  if (caseToUpdate) {
-    const newDocument: CaseDocument = { ...document, uploadedAt: new Date() };
-    caseToUpdate.documents.push(newDocument);
-    return newDocument;
-  }
-  return undefined;
-}
+// --- Functions below are NOT connected to the API per instructions ---
 
 export async function getDailyHearings(advocateId: string, date: Date): Promise<Case[]> {
   await new Promise(resolve => setTimeout(resolve, 500));
@@ -234,15 +219,86 @@ export async function getDailyHearings(advocateId: string, date: Date): Promise<
     c.advocateId === advocateId &&
     new Date(c.hearingDate) >= queryDateStart &&
     new Date(c.hearingDate) <= queryDateEnd &&
-    c.status !== CASE_STATUSES.CLOSED // Don't show closed cases for daily report action
+    c.status !== CASE_STATUSES.CLOSED
   ).sort((a,b) => new Date(a.hearingDate).getTime() - new Date(b.hearingDate).getTime());
+}
+
+export async function addNoteToCase(caseId: string, note: Pick<Note, 'message' | 'by' | 'byName'>): Promise<Note | undefined> {
+  await new Promise(resolve => setTimeout(resolve, 400));
+  const caseToUpdate = MOCK_CASES.find(c => c.caseId === caseId);
+  if (caseToUpdate) {
+    const newNote: Note = { ...note, at: new Date() };
+    if(!caseToUpdate.notes) caseToUpdate.notes = [];
+    caseToUpdate.notes.push(newNote);
+    return newNote;
+  }
+  return undefined;
+}
+
+export async function addDocumentToCase(caseId: string, document: Omit<CaseDocument, 'uploadedAt'>): Promise<CaseDocument | undefined> {
+  await new Promise(resolve => setTimeout(resolve, 600));
+  const caseToUpdate = MOCK_CASES.find(c => c.caseId === caseId);
+  if (caseToUpdate) {
+    const newDocument: CaseDocument = { ...document, uploadedAt: new Date() };
+    if(!caseToUpdate.documents) caseToUpdate.documents = [];
+    caseToUpdate.documents.push(newDocument);
+    return newDocument;
+  }
+  return undefined;
+}
+
+export async function addTaskToCase(caseId: string, taskData: Omit<Task, 'id' | 'createdOn' | 'completed' | 'caseId'>): Promise<Task | undefined> {
+  await new Promise(resolve => setTimeout(resolve, 400));
+  const caseToUpdate = MOCK_CASES.find(c => c.caseId === caseId);
+  if (caseToUpdate) {
+    const newTask: Task = {
+      ...taskData,
+      id: `task-${Date.now()}`,
+      caseId,
+      createdOn: new Date(),
+      completed: false,
+    };
+    if (!caseToUpdate.tasks) caseToUpdate.tasks = [];
+    caseToUpdate.tasks.push(newTask);
+    return newTask;
+  }
+  return undefined;
+}
+
+export async function updateTaskInCase(caseId: string, taskId: string, updates: Partial<Task>): Promise<Task | undefined> {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  const caseToUpdate = MOCK_CASES.find(c => c.caseId === caseId);
+  if (caseToUpdate && caseToUpdate.tasks) {
+    const taskIndex = caseToUpdate.tasks.findIndex(t => t.id === taskId);
+    if (taskIndex > -1) {
+      caseToUpdate.tasks[taskIndex] = { ...caseToUpdate.tasks[taskIndex], ...updates };
+      if (updates.completed === true && !caseToUpdate.tasks[taskIndex].completedOn) {
+        caseToUpdate.tasks[taskIndex].completedOn = new Date();
+      } else if (updates.completed === false) {
+        caseToUpdate.tasks[taskIndex].completedOn = undefined;
+      }
+      return caseToUpdate.tasks[taskIndex];
+    }
+  }
+  return undefined;
+}
+
+export async function deleteTaskFromCase(caseId: string, taskId: string): Promise<boolean> {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  const caseToUpdate = MOCK_CASES.find(c => c.caseId === caseId);
+  if (caseToUpdate && caseToUpdate.tasks) {
+    const initialLength = caseToUpdate.tasks.length;
+    caseToUpdate.tasks = caseToUpdate.tasks.filter(t => t.id !== taskId);
+    return caseToUpdate.tasks.length < initialLength;
+  }
+  return false;
 }
 
 export async function recordHearingOutcomeAndSetNext(
   caseId: string,
-  todaysHearingDate: Date, // The date of the hearing being recorded
+  todaysHearingDate: Date,
   currentHearingOutcome: { status: CaseStatus; notes?: string },
-  nextHearingDetails: { date: Date; status: CaseStatus } | null, // Null if case is closed
+  nextHearingDetails: { date: Date; status: CaseStatus } | null,
   currentUser: AuthUser
 ): Promise<Case | undefined> {
   await new Promise(resolve => setTimeout(resolve, 700));
@@ -252,20 +308,20 @@ export async function recordHearingOutcomeAndSetNext(
   const caseToUpdate = MOCK_CASES[caseIndex];
 
   const historyEntry: HearingEntry = {
-    hearingDate: todaysHearingDate, // Use the actual date of the hearing
+    hearingDate: todaysHearingDate,
     status: currentHearingOutcome.status,
     notes: currentHearingOutcome.notes || `Hearing on ${todaysHearingDate.toLocaleDateString()} concluded with status: ${currentHearingOutcome.status}`,
     updatedBy: currentUser.uid,
     updatedByName: `${currentUser.firstName} ${currentUser.lastName}`,
     updatedAt: new Date(),
   };
+  if(!caseToUpdate.hearingHistory) caseToUpdate.hearingHistory = [];
   caseToUpdate.hearingHistory.push(historyEntry);
 
   if (nextHearingDetails) {
     caseToUpdate.hearingDate = nextHearingDetails.date;
     caseToUpdate.status = nextHearingDetails.status;
     
-    // Also add a history entry for scheduling the next hearing if it's different from the outcome status
     if (nextHearingDetails.status !== currentHearingOutcome.status || nextHearingDetails.date.getTime() !== todaysHearingDate.getTime()) {
         const nextSchedulingEntry: HearingEntry = {
             hearingDate: nextHearingDetails.date,
@@ -273,31 +329,16 @@ export async function recordHearingOutcomeAndSetNext(
             notes: `Next hearing scheduled for ${nextHearingDetails.date.toLocaleDateString()}. Case status set to ${nextHearingDetails.status}.`,
             updatedBy: currentUser.uid,
             updatedByName: `${currentUser.firstName} ${currentUser.lastName}`,
-            updatedAt: new Date(new Date().getTime() + 1), // ensure slightly different timestamp
+            updatedAt: new Date(new Date().getTime() + 1),
         };
         caseToUpdate.hearingHistory.push(nextSchedulingEntry);
     }
 
   } else {
-    // Case is being closed or put on hold without a specific next date
     caseToUpdate.status = currentHearingOutcome.status; 
   }
   
   caseToUpdate.hearingHistory.sort((a, b) => new Date(a.hearingDate).getTime() - new Date(b.hearingDate).getTime());
   MOCK_CASES[caseIndex] = caseToUpdate;
   return caseToUpdate;
-}
-
-
-export async function getMockAdvocates() {
-    const allUsers = await getUsers();
-    return allUsers
-        .filter(u => u.role === USER_ROLES.ADVOCATE)
-        .map(u => ({ id: u.uid, name: `${u.firstName} ${u.lastName}` }));
-}
-export async function getMockClients() {
-    const allUsers = await getUsers();
-    return allUsers
-        .filter(u => u.role === USER_ROLES.CLIENT)
-        .map(u => ({ id: u.uid, name: `${u.firstName} ${u.lastName}` }));
 }

@@ -3,7 +3,10 @@
 import type { AuthUser, UserFormValues, SubscriptionPlan } from './types';
 import { USER_ROLES, UserRole, SUBSCRIPTION_PLAN_IDS, INITIAL_SUBSCRIPTION_PLANS_CONFIG, ALL_INITIAL_SUBSCRIPTION_PLANS, type SubscriptionPlanId } from './constants';
 import { addMonths } from 'date-fns';
+import apiFetch from './api-client';
 
+// The MOCK_USERS_DB will now be used as a supplementary source for data not in the API
+// e.g., isActive status and subscription details, per the instructions.
 let MOCK_USERS_DB: AuthUser[] = [
   {
     uid: 'advocate1', firstName: 'Alice', lastName: 'Advocate', email: 'advocate@example.com', role: USER_ROLES.ADVOCATE, phone: '1234567890', createdOn: new Date('2023-01-15'), advocateEnrollmentNumber: 'MAH/123/2000', isActive: true,
@@ -19,91 +22,171 @@ let MOCK_USERS_DB: AuthUser[] = [
   { uid: 'client-inactive', firstName: 'Inactive', lastName: 'User', email: 'inactive@example.com', role: USER_ROLES.CLIENT, createdOn: new Date('2023-05-01'), isActive: false },
 ];
 
-// Mock database for subscription plans, initialized from constants
 let MOCK_SUBSCRIPTION_PLANS_DB: SubscriptionPlan[] = JSON.parse(JSON.stringify(ALL_INITIAL_SUBSCRIPTION_PLANS));
 
+// Helper to merge API data with mock data for fields not in API
+const mergeWithMockUserData = (apiUser: any, userId: string): AuthUser => {
+    const mockUser = MOCK_USERS_DB.find(u => u.uid === userId || u.email === apiUser.email);
+    return {
+        uid: userId, // The API doesn't seem to return the ID in the body, so we use the one we have
+        firstName: apiUser.firstName,
+        lastName: apiUser.lastName,
+        email: apiUser.email,
+        role: apiUser.role,
+        phone: apiUser.phone,
+        createdOn: new Date(apiUser.createdAt || apiUser.createdOn),
+        advocateEnrollmentNumber: apiUser.advocateEnrollmentNumber,
+        // Merge fields from mock DB
+        isActive: mockUser?.isActive ?? true,
+        subscriptionPlanId: mockUser?.subscriptionPlanId,
+        subscriptionExpiryDate: mockUser?.subscriptionExpiryDate,
+        lastPaymentDate: mockUser?.lastPaymentDate,
+        lastPaymentAmount: mockUser?.lastPaymentAmount,
+        lastPaymentCurrency: mockUser?.lastPaymentCurrency,
+        lastPaymentTransactionId: mockUser?.lastPaymentTransactionId
+    };
+};
 
 export async function getUsers(): Promise<AuthUser[]> {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return MOCK_USERS_DB;
+    // API has separate endpoints for advocates and clients. We'll fetch both and merge.
+    const advocatesFromApi = await apiFetch('/superadmin/Advocates');
+    const clientsFromApi = await apiFetch('/advocate/clients');
+
+    const combinedUsers = [];
+    if (Array.isArray(advocatesFromApi)) {
+        // The advocate object is nested, need to map it correctly.
+        combinedUsers.push(...advocatesFromApi.map((adv:any) => mergeWithMockUserData(adv.User, adv.User.id || adv.User.email)));
+    }
+    if (Array.isArray(clientsFromApi)) {
+        combinedUsers.push(...clientsFromApi.map((cli:any) => mergeWithMockUserData(cli.User, cli.User.id || cli.User.email)));
+    }
+
+    // Add super admin from mock data as API doesn't have an endpoint for it.
+    const admin = MOCK_USERS_DB.find(u => u.role === USER_ROLES.SUPER_ADMIN);
+    if(admin) combinedUsers.push(admin);
+
+    return combinedUsers;
 }
 
 export async function getUserById(uid: string): Promise<AuthUser | undefined> {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  return MOCK_USERS_DB.find(u => u.uid === uid);
+    // Since we don't know the role, we have to try both endpoints. This is not ideal.
+    try {
+        const client = await apiFetch(`/advocate/clients/${uid}`);
+        return mergeWithMockUserData(client.User, uid);
+    } catch (e) {
+        try {
+            const advocate = await apiFetch(`/superadmin/Advocates/${uid}`);
+            return mergeWithMockUserData(advocate.User, uid);
+        } catch (e2) {
+            // Fallback to mock DB if API fails (e.g. for super admin)
+            return MOCK_USERS_DB.find(u => u.uid === uid);
+        }
+    }
 }
 
 export async function createUser(userData: UserFormValues): Promise<AuthUser> {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  if (MOCK_USERS_DB.some(u => u.email === userData.email)) {
-    throw new Error("User with this email already exists.");
-  }
-  const newUser: AuthUser = {
-    uid: `user-${Date.now()}`,
-    firstName: userData.firstName,
-    lastName: userData.lastName,
-    email: userData.email,
-    role: userData.role,
-    phone: userData.phone,
-    createdOn: new Date(),
-    isActive: userData.isActive === undefined ? true : userData.isActive,
-  };
-
-  if (userData.role === USER_ROLES.ADVOCATE) {
-    if (!userData.advocateEnrollmentNumber) {
-        throw new Error("Advocate enrolment certificate number is required for advocates.");
-    }
-    if (!userData.confirmIndiaAdvocate) {
-        throw new Error("Confirmation of practicing in India is required for advocates.");
-    }
-    newUser.advocateEnrollmentNumber = userData.advocateEnrollmentNumber;
+    // Using `/account/register` as the primary signup/creation endpoint
+    const apiPayload = {
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      email: userData.email,
+      role: userData.role,
+      username: userData.email, // API uses username, we'll use email
+      password: userData.password,
+      confirmPassword: userData.password, // Assuming confirmPassword is the same
+      advocateEnrollmentNumber: userData.advocateEnrollmentNumber || '',
+      confirmIndiaAdvocate: userData.confirmIndiaAdvocate || false,
+    };
     
-    const trialPlan = await getSubscriptionPlanById(SUBSCRIPTION_PLAN_IDS.FREE_TRIAL);
-    if (trialPlan) {
-        newUser.subscriptionPlanId = trialPlan.id;
-        newUser.subscriptionExpiryDate = addMonths(new Date(), trialPlan.durationMonths);
-        console.log(`[UserService] Creating Advocate: ${newUser.firstName} ${newUser.lastName}. Free trial assigned, expires: ${newUser.subscriptionExpiryDate}.`);
-    } else {
-        console.warn("[UserService] Free trial plan not found during user creation.");
-    }
-  }
+    await apiFetch('/account/register', {
+        method: 'POST',
+        body: JSON.stringify(apiPayload)
+    });
+    
+    // API doesn't return the created user, so we have to construct it.
+    // This is not ideal, a real API should return the created object with its ID.
+    const newUser: AuthUser = {
+        uid: `user-${Date.now()}`, // Temporary UID
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email,
+        role: userData.role,
+        phone: userData.phone,
+        createdOn: new Date(),
+        isActive: true,
+        advocateEnrollmentNumber: userData.advocateEnrollmentNumber,
+    };
 
-  MOCK_USERS_DB.push(newUser);
-  return newUser;
+    if (userData.role === USER_ROLES.ADVOCATE) {
+        const trialPlan = await getSubscriptionPlanById(SUBSCRIPTION_PLAN_IDS.FREE_TRIAL);
+        if (trialPlan) {
+            newUser.subscriptionPlanId = trialPlan.id;
+            newUser.subscriptionExpiryDate = addMonths(new Date(), trialPlan.durationMonths);
+        }
+    }
+    
+    MOCK_USERS_DB.push(newUser); // Add to mock db for supplementary data
+    return newUser;
 }
 
-export async function updateUser(uid: string, userData: Partial<UserFormValues & Pick<AuthUser, 'subscriptionPlanId' | 'subscriptionExpiryDate' | 'lastPaymentAmount' | 'lastPaymentCurrency' | 'lastPaymentDate' | 'lastPaymentTransactionId'>>): Promise<AuthUser | undefined> {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  const userIndex = MOCK_USERS_DB.findIndex(u => u.uid === uid);
-  if (userIndex > -1) {
-    if (userData.email && userData.email !== MOCK_USERS_DB[userIndex].email && MOCK_USERS_DB.some(u => u.email === userData.email && u.uid !== uid)) {
-        throw new Error("Another user with this email already exists.");
-    }
-    
-    const updatedUser = { ...MOCK_USERS_DB[userIndex], ...userData } as AuthUser;
+export async function updateUser(uid: string, userData: Partial<UserFormValues>): Promise<AuthUser | undefined> {
+    const userToUpdate = await getUserById(uid);
+    if (!userToUpdate) throw new Error("User not found");
 
-    if (userData.role === USER_ROLES.ADVOCATE && !userData.advocateEnrollmentNumber && !updatedUser.advocateEnrollmentNumber) {
-      // This logic can be refined, but for now, we assume advocateEnrollmentNumber is sticky unless changed.
-    } else if (userData.role && userData.role !== USER_ROLES.ADVOCATE) {
-        delete updatedUser.advocateEnrollmentNumber;
-        delete updatedUser.subscriptionPlanId;
-        delete updatedUser.subscriptionExpiryDate;
-        delete updatedUser.lastPaymentAmount;
-        // ... clear other payment fields
-    }
+    let apiPayload: any = {
+        User: {
+            ...userToUpdate,
+            ...userData,
+            username: userData.email || userToUpdate.email
+        }
+    };
     
-    MOCK_USERS_DB[userIndex] = updatedUser;
-    return MOCK_USERS_DB[userIndex];
-  }
-  return undefined;
+    let endpoint = '';
+    if(userToUpdate.role === USER_ROLES.ADVOCATE){
+        endpoint = `/superadmin/Advocates/${uid}`;
+        apiPayload = { ...apiPayload.User, Specialization: "General" } // API requires specialization
+    } else if (userToUpdate.role === USER_ROLES.CLIENT){
+        endpoint = `/advocate/clients/${uid}`;
+    } else {
+        // Not touching SuperAdmin updates as there's no endpoint
+        const mockIndex = MOCK_USERS_DB.findIndex(u => u.uid === uid);
+        if(mockIndex > -1) {
+            MOCK_USERS_DB[mockIndex] = { ...MOCK_USERS_DB[mockIndex], ...userData };
+            return MOCK_USERS_DB[mockIndex];
+        }
+        return undefined;
+    }
+
+    await apiFetch(endpoint, {
+        method: 'PUT',
+        body: JSON.stringify(apiPayload)
+    });
+    
+    // API does not return updated object, so refetch
+    return await getUserById(uid);
 }
 
 export async function deleteUser(uid: string): Promise<boolean> {
-  await new Promise(resolve => setTimeout(resolve, 400));
-  const initialLength = MOCK_USERS_DB.length;
-  MOCK_USERS_DB = MOCK_USERS_DB.filter(u => u.uid !== uid);
-  return MOCK_USERS_DB.length < initialLength;
+     const userToDelete = await getUserById(uid);
+    if (!userToDelete) return false;
+
+    let endpoint = '';
+    if (userToDelete.role === USER_ROLES.ADVOCATE) {
+        endpoint = `/superadmin/Advocates/${uid}`;
+    } else if (userToDelete.role === USER_ROLES.CLIENT) {
+        endpoint = `/advocate/clients/${uid}`;
+    } else {
+      // No endpoint for admin, use mock
+      const initialLength = MOCK_USERS_DB.length;
+      MOCK_USERS_DB = MOCK_USERS_DB.filter(u => u.uid !== uid);
+      return MOCK_USERS_DB.length < initialLength;
+    }
+
+    await apiFetch(endpoint, { method: 'DELETE' });
+    return true;
 }
+
+// --- Functions below are NOT connected to the API per instructions ---
 
 export async function activateUser(uid: string): Promise<AuthUser | undefined> {
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -156,11 +239,8 @@ export async function updateAdvocateSubscription(userId: string, planId: Subscri
   return MOCK_USERS_DB[userIndex];
 }
 
-// --- Subscription Plan Management ---
-
 export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
   await new Promise(resolve => setTimeout(resolve, 200));
-  // Return a deep copy to prevent direct modification of the mock DB
   return JSON.parse(JSON.stringify(MOCK_SUBSCRIPTION_PLANS_DB));
 }
 
@@ -177,7 +257,6 @@ export async function updateSubscriptionPlan(
   await new Promise(resolve => setTimeout(resolve, 400));
   const planIndex = MOCK_SUBSCRIPTION_PLANS_DB.findIndex(p => p.id === planId);
   if (planIndex > -1) {
-    // Prevent changing 'id' or 'isTrial' status via this function
     const originalPlan = MOCK_SUBSCRIPTION_PLANS_DB[planIndex];
     if (originalPlan.isTrial && (updates.priceINR !== undefined || updates.durationMonths !== undefined)) {
         throw new Error("Price and duration for trial plans cannot be modified.");
@@ -186,10 +265,23 @@ export async function updateSubscriptionPlan(
     MOCK_SUBSCRIPTION_PLANS_DB[planIndex] = {
       ...originalPlan,
       ...updates,
-      id: originalPlan.id, // Ensure ID doesn't change
-      isTrial: originalPlan.isTrial, // Ensure isTrial doesn't change
+      id: originalPlan.id,
+      isTrial: originalPlan.isTrial,
     };
     return JSON.parse(JSON.stringify(MOCK_SUBSCRIPTION_PLANS_DB[planIndex]));
   }
   return undefined;
+}
+
+export async function getMockAdvocates() {
+    const allUsers = await getUsers();
+    return allUsers
+        .filter(u => u.role === USER_ROLES.ADVOCATE)
+        .map(u => ({ id: u.uid, name: `${u.firstName} ${u.lastName}` }));
+}
+export async function getMockClients() {
+    const allUsers = await getUsers();
+    return allUsers
+        .filter(u => u.role === USER_ROLES.CLIENT)
+        .map(u => ({ id: u.uid, name: `${u.firstName} ${u.lastName}` }));
 }

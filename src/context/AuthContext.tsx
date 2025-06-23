@@ -14,9 +14,10 @@ import {
   createUser as serviceCreateUser,
   updateUser as serviceUpdateUser,
   updateAdvocateSubscription as serviceUpdateSubscription,
-  getSubscriptionPlanById // Added import
+  getSubscriptionPlanById
 } from '@/lib/userService'; 
 import { isUserSubscriptionActive as checkIsSubscriptionActive } from '@/lib/utils'; 
+import apiFetch from '@/lib/api-client';
 
 
 interface AuthContextType {
@@ -28,7 +29,7 @@ interface AuthContextType {
   updateUserRole: (uid: string, newRole: UserRole) => Promise<void>; 
   isSubscriptionActive: boolean;
   refreshUser: () => Promise<void>; 
-  updateSubscription: (planId: SubscriptionPlanId) => Promise<boolean>; // Now takes planId
+  updateSubscription: (planId: SubscriptionPlanId) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       const refreshedUser = await getUserById(user.uid);
       if (refreshedUser) {
+        // Dates are already converted in the service layer, but localStorage might stringify them
         if (refreshedUser.subscriptionExpiryDate && typeof refreshedUser.subscriptionExpiryDate === 'string') {
           refreshedUser.subscriptionExpiryDate = new Date(refreshedUser.subscriptionExpiryDate);
         }
@@ -92,29 +94,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const login = useCallback(async (email: string, _password?: string) => {
+  const login = useCallback(async (email: string, password?: string) => {
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500)); 
     try {
-      const allUsers = await getUsers(); 
-      const foundUser = allUsers.find(u => u.email === email);
-      
-      if (foundUser && foundUser.isActive) {
-        setUser(foundUser);
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(foundUser));
-        toast({ title: "Login Successful", description: `Welcome back, ${foundUser.firstName}!` });
-        router.push('/dashboard');
-      } else if (foundUser && !foundUser.isActive) {
-        toast({ title: "Login Failed", description: "Your account is inactive. Please contact support.", variant: "destructive" });
-        setUser(null);
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-      } else {
-        toast({ title: "Login Failed", description: "Invalid email or password.", variant: "destructive" });
-        setUser(null);
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-      }
+        await apiFetch('/account/login', {
+            method: 'POST',
+            body: JSON.stringify({ username: email, password: password })
+        });
+
+        // The API returns an empty object on success, which is not ideal.
+        // We have to fetch all users and find the one that just logged in.
+        // In a real app, the login endpoint should return user details and a token.
+        const allUsers = await getUsers();
+        const foundUser = allUsers.find(u => u.email === email);
+
+        if (foundUser) {
+            // Per instructions, client activation is mock. Check from the merged user data.
+            if(foundUser.isActive) {
+                setUser(foundUser);
+                localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(foundUser));
+                toast({ title: "Login Successful", description: `Welcome back, ${foundUser.firstName}!` });
+                router.push('/dashboard');
+            } else {
+                toast({ title: "Login Failed", description: "Your account is inactive. Please contact support.", variant: "destructive" });
+                setUser(null);
+                localStorage.removeItem(AUTH_STORAGE_KEY);
+            }
+        } else {
+            throw new Error("Login successful but could not retrieve user details.");
+        }
+
     } catch (error: any) {
-      toast({ title: "Login Error", description: error.message || "An unexpected error occurred.", variant: "destructive" });
+      toast({ title: "Login Failed", description: error.message || "Invalid email or password.", variant: "destructive" });
       setUser(null);
       localStorage.removeItem(AUTH_STORAGE_KEY);
     } finally {
@@ -124,8 +135,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signup = useCallback(async (values: UserFormValues) => {
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500)); 
     try {
+      // The `serviceCreateUser` function now handles the API call to /account/register
       const createdUser = await serviceCreateUser(values); 
       
       setUser(createdUser);
@@ -170,6 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, toast]);
 
+  // This function is NOT using the API as per instructions
   const updateSubscription = useCallback(async (planId: SubscriptionPlanId): Promise<boolean> => {
     if (!user || user.role !== USER_ROLES.ADVOCATE) {
       toast({ title: "Error", description: "Only advocates can have subscriptions.", variant: "destructive" });
@@ -177,13 +189,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setLoading(true);
     try {
-      // Fetch plan details using planId to ensure we use the latest price/duration
-      // (This step is now effectively handled by serviceUpdateSubscription which fetches the plan)
       const updatedUser = await serviceUpdateSubscription(user.uid, planId); 
       if (updatedUser) {
         setUser(updatedUser); 
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
-        // Fetch plan name for toast message
         const planDetails = await getSubscriptionPlanById(planId);
         toast({ title: "Subscription Updated!", description: `You are now subscribed to ${planDetails?.name || 'the selected plan'}.` });
         setLoading(false);
@@ -201,7 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && !user && !['/login', '/signup', '/forgot-password', '/'].includes(pathname) && !pathname.startsWith('/subscription') && !pathname.startsWith('/admin')) {
-       // router.push('/login'); // Commented out for now as it might be too aggressive during development
+       // router.push('/login');
     }
   }, [user, loading, pathname, router]);
 

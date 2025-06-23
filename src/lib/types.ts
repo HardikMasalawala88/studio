@@ -10,16 +10,17 @@ export interface AuthUser {
   phone?: string;
   createdOn?: Date;
   advocateEnrollmentNumber?: string;
+  
+  // This field is from the mock service, not the API
   isActive?: boolean;
 
-  // Subscription related fields for Advocates
+  // These subscription-related fields are from the mock service, not the API
   subscriptionPlanId?: SubscriptionPlanId;
   subscriptionExpiryDate?: Date;
-  // Mock payment details
   lastPaymentDate?: Date;
   lastPaymentAmount?: number;
   lastPaymentCurrency?: 'INR';
-  lastPaymentTransactionId?: string; // Placeholder for PhonePe transaction ID
+  lastPaymentTransactionId?: string; 
 }
 
 export interface Note {
@@ -44,6 +45,19 @@ export interface HearingEntry {
   updatedAt: Date;
 }
 
+export interface Task {
+  id: string;
+  caseId: string;
+  title: string;
+  description?: string;
+  dueDate?: Date;
+  completed: boolean;
+  createdOn: Date;
+  completedOn?: Date;
+  createdBy: string; 
+  createdByName: string;
+}
+
 export interface Case {
   caseId: string;
   title: string;
@@ -54,10 +68,13 @@ export interface Case {
   advocateName?: string;
   clientId: string;
   clientName?: string;
+  createdOn: Date;
+
+  // These fields are from the mock service, not the API
   documents: CaseDocument[];
   notes: Note[];
   hearingHistory: HearingEntry[];
-  createdOn: Date;
+  tasks: Task[];
 }
 
 export interface DailyHearing {
