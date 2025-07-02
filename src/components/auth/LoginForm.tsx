@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import Link from 'next/link';
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,14 +15,21 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import { Loader2 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 
 const formSchema = z.object({
-  email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(1, { message: "Password is required." }), // Simplified for mock, real app: min(8, { message: "Password must be at least 8 characters." })
+  email: z.string().email(),
+  password: z.string().min(1),
 });
 
 export function LoginForm() {
@@ -36,19 +43,21 @@ export function LoginForm() {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    await login(values.email, values.password);
-  }
+  const handleLogin = async () => {
+    const { email, password } = form.getValues();
+    console.log("🚀 Login values:", { email, password });
+    await login(email, password);
+  };
 
   return (
     <Card className="w-full max-w-md shadow-xl">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-headline">{APP_NAME} Login</CardTitle>
-        <CardDescription>Enter your credentials to access your account.</CardDescription>
+        <CardDescription>Enter your credentials to access your account-Om-Drashti-caseTracker.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <div className="space-y-6">
             <FormField
               control={form.control}
               name="email"
@@ -62,6 +71,7 @@ export function LoginForm() {
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="password"
@@ -75,16 +85,17 @@ export function LoginForm() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={loading}>
+
+            <Button onClick={handleLogin} type="button" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Login
             </Button>
-          </form>
+          </div>
         </Form>
       </CardContent>
       <CardFooter className="flex flex-col space-y-2 text-sm">
-         <Link href="/forgot-password" passHref>
-            <Button variant="link" className="p-0 h-auto font-normal">Forgot password?</Button>
+        <Link href="/forgot-password" passHref>
+          <Button variant="link" className="p-0 h-auto font-normal">Forgot password?</Button>
         </Link>
         <p className="text-muted-foreground">
           Don&apos;t have an account?{" "}

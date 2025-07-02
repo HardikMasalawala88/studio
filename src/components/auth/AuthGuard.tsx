@@ -31,7 +31,8 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
     // If logged in, check roles if specified
     if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
       // If user's role is not allowed, redirect to dashboard or an unauthorized page
-      router.push('/dashboard?error=unauthorized'); // Or a dedicated /unauthorized page
+      //router.push('/dashboard?error=unauthorized'); // Or a dedicated /unauthorized page
+      router.push(`/login`);
     }
   }, [user, loading, router, pathname, allowedRoles]);
 
