@@ -57,7 +57,7 @@ let MOCK_CASES: Case[] = [
     title: 'Urgent Flight Hearing - Leo Lanister',
     description: 'Seeking an urgent Flight against unauthorized access of intellectual property.',
     hearingDate: todayAt(9, 30),
-    status: CASE_STATUSES.UPCOMING,
+    status: CASE_STATUSES.OPEN,
     advocateId: 'advocate1',
     advocateName: 'Alice Advocate',
     clientId: 'client-leo',

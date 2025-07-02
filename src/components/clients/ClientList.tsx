@@ -1,81 +1,108 @@
-
 "use client";
 
-import type { AuthUser } from "@/lib/types";
 import { useEffect, useState, useMemo } from "react";
-import { getUsers, deactivateUser, activateUser } from "@/lib/userService";
-import { Button } from "@/components/ui/button";
-import { PlusCircle, Edit, UserX, UserCheck, Search, Filter, Users2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import {
+  PlusCircle,
+  Edit,
+  UserX,
+  UserCheck,
+  Search,
+  Users2,
+} from "lucide-react";
+
+import ApiService from "@/api/apiService";
+import { USER_ROLES } from "@/lib/constants";
+import { type AuthUser } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { ClientForm } from "./ClientForm";
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
+  AlertDialogTrigger,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import { ClientForm } from "./ClientForm";
-import { Skeleton } from "@/components/ui/skeleton";
-import { USER_ROLES } from "@/lib/constants"; // For filtering clients
+import { UserFormValues, ClientData } from "@/lib/model";
 
 export function ClientList() {
   const { toast } = useToast();
-  const [allUsers, setAllUsers] = useState<AuthUser[]>([]); // Store all users first
-  const [clients, setClients] = useState<AuthUser[]>([]);
+  // const [clients, setClients] = useState<UserFormValues[]>([]);
+  const [clients, setClients] = useState<ClientData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingClient, setEditingClient] = useState<AuthUser | undefined>(undefined);
+  const [editingClient, setEditingClient] = useState<ClientData | undefined>();
+  // const [editingClient, setEditingClient] = useState<
+  //   UserFormValues | undefined
+  // >(undefined);
 
   useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      const fetchedUsers = await getUsers();
-      setAllUsers(fetchedUsers);
-      // Filter for clients from all users
-      setClients(fetchedUsers.filter(u => u.role === USER_ROLES.CLIENT));
+    loadClients();
+  }, []);
+  const loadClients = async () => {
+    setLoading(true);
+    try {
+      const response = await ApiService.listClients();
+      const data = response.data;
+
+      const fetchedClients: ClientData[] = data.map((client: any) => ({
+        id: client.id || client.user?._id,
+        createdBy: client.createdBy,
+        modifiedBy: client.modifiedBy,
+        createdAt: client.createdAt,
+        modifiedAt: client.modifiedAt,
+        cases: client.cases ?? [],
+        user: {
+          ...client.user,
+          uid: client.id || client.user?._id,
+          phone: client.user.phone ?? "",
+          isActive: true, // or from `client.user.isActive`
+        },
+      }));
+      setClients(fetchedClients);
+    } catch (error: any) {
+      toast({
+        title: "Error loading clients",
+        description: error?.response?.data?.detail || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
       setLoading(false);
     }
-    loadData();
-  }, []);
+  };
 
   const filteredClients = useMemo(() => {
-    return clients
-      .filter(c => 
-        c.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.email.toLowerCase().includes(searchTerm.toLowerCase())
+    return clients.filter((client) => {
+      const user = client.user;
+      if (!user) return false;
+
+      const term = searchTerm.toLowerCase();
+      return (
+        user.firstName?.toLowerCase().includes(term) ||
+        user.lastName?.toLowerCase().includes(term) ||
+        user.email?.toLowerCase().includes(term)
       );
+    });
   }, [clients, searchTerm]);
 
-  const handleToggleClientStatus = async (client: AuthUser) => {
-    try {
-      let updatedClient: AuthUser | undefined;
-      if (client.isActive) {
-        updatedClient = await deactivateUser(client.uid);
-        toast({ title: "Client Deactivated", description: `${client.firstName} ${client.lastName} has been deactivated.` });
-      } else {
-        updatedClient = await activateUser(client.uid);
-        toast({ title: "Client Activated", description: `${client.firstName} ${client.lastName} has been activated.` });
-      }
-      if (updatedClient) {
-        setClients(prevClients => prevClients.map(c => c.uid === updatedClient!.uid ? updatedClient! : c));
-      }
-    } catch (error: any) {
-       toast({ title: "Error", description: error.message || "Failed to update client status.", variant: "destructive" });
-    }
-  };
-  
-  const handleOpenForm = (client?: AuthUser) => {
+  const handleOpenForm = (client?: ClientData) => {
     setEditingClient(client);
     setIsFormOpen(true);
   };
@@ -85,28 +112,16 @@ export function ClientList() {
     setIsFormOpen(false);
   };
 
-  const handleClientSaved = (savedClient: AuthUser) => {
-    if (editingClient) { // If editing
-      setClients(prev => prev.map(c => c.uid === savedClient.uid ? savedClient : c));
-    } else { // If creating new
-      setClients(prev => [savedClient, ...prev]);
+  const handleClientSaved = (savedClient: ClientData) => {
+    if (editingClient) {
+      setClients((prev) =>
+        prev.map((c) => (c.id === savedClient.id ? savedClient : c))
+      );
+    } else {
+      setClients((prev) => [savedClient, ...prev]);
     }
+    loadClients();
   };
-  
-  if (loading) {
-     return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-           <Skeleton className="h-10 w-1/4" />
-           <Skeleton className="h-10 w-24" />
-        </div>
-        <Skeleton className="h-10 w-full mb-4" />
-        {[...Array(3)].map((_, i) => (
-          <Skeleton key={i} className="h-16 w-full rounded-md" />
-        ))}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -126,12 +141,22 @@ export function ClientList() {
         </Button>
       </div>
 
-      {filteredClients.length === 0 ? (
-         <div className="text-center py-12">
+      {loading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-1/4" />
+          <Skeleton className="h-10 w-full mb-4" />
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-md" />
+          ))}
+        </div>
+      ) : filteredClients.length === 0 ? (
+        <div className="text-center py-12">
           <Users2 className="mx-auto h-12 w-12 text-muted-foreground" />
           <h3 className="mt-2 text-xl font-semibold">No Clients Found</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            {clients.length === 0 ? "You haven't added any clients yet." : "Try adjusting your search."}
+            {clients.length === 0
+              ? "You haven't added any clients yet."
+              : "Try adjusting your search."}
           </p>
           {clients.length === 0 && (
             <Button className="mt-6" onClick={() => handleOpenForm()}>
@@ -146,7 +171,6 @@ export function ClientList() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created On</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -154,47 +178,62 @@ export function ClientList() {
             </TableHeader>
             <TableBody>
               {filteredClients.map((client) => (
-                <TableRow key={client.uid}>
-                  <TableCell className="font-medium">{client.firstName} {client.lastName}</TableCell>
-                  <TableCell>{client.email}</TableCell>
-                  <TableCell>{client.phone || 'N/A'}</TableCell>
+                <TableRow
+                  key={client.id || client.user.uid || client.user.email}
+                >
                   <TableCell>
-                    <Badge variant={client.isActive ? "default" : "outline"} className={client.isActive ? "bg-green-500/20 text-green-700 border-green-500/30 hover:bg-green-500/30" : "bg-red-500/10 text-red-700 border-red-500/20 hover:bg-red-500/20"}>
-                      {client.isActive ? 'Active' : 'Inactive'}
+                    {client.user.firstName} {client.user.lastName}
+                  </TableCell>
+                  <TableCell>{client.user.email}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={client.user.isActive ? "default" : "outline"}
+                    >
+                      {client.user.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
-                  <TableCell>{client.createdOn ? format(new Date(client.createdOn), "PP") : 'N/A'}</TableCell>
+
+                  <TableCell>
+                    {client.createdAt
+                      ? format(new Date(client.createdAt), "PP")
+                      : "N/A"}
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" title="Edit Client" onClick={() => handleOpenForm(client)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleOpenForm(client)}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            title={client.isActive ? "Deactivate Client" : "Activate Client"} 
-                            className={client.isActive ? "text-destructive hover:text-destructive" : "text-green-600 hover:text-green-700"}
-                          >
-                            {client.isActive ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                          <Button variant="ghost" size="icon">
+                            {client.user.isActive ? (
+                              <UserX className="h-4 w-4" />
+                            ) : (
+                              <UserCheck className="h-4 w-4" />
+                            )}
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will {client.isActive ? 'deactivate' : 'activate'} the client {client.firstName} {client.lastName}. 
-                              {client.isActive ? ' Deactivated clients cannot log in or be assigned to new cases.' : ' Activated clients will regain access.'}
+                              {client.user.isActive
+                                ? `Deactivate ${client.user.firstName}?`
+                                : `Activate ${client.user.firstName}?`}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction 
-                                onClick={() => handleToggleClientStatus(client)} 
-                                className={client.isActive ? "bg-destructive hover:bg-destructive/90" : "bg-green-600 hover:bg-green-700/90 text-white"}
+                            <AlertDialogAction
+                              onClick={() =>
+                                toast({ title: "Not implemented" })
+                              }
                             >
-                              {client.isActive ? 'Deactivate' : 'Activate'}
+                              Confirm
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -207,12 +246,15 @@ export function ClientList() {
           </Table>
         </div>
       )}
-      <ClientForm 
-        isOpen={isFormOpen} 
-        onClose={handleCloseForm} 
-        initialData={editingClient}
-        onClientSaved={handleClientSaved}
-      />
+
+      {isFormOpen && (
+        <ClientForm
+          isOpen={isFormOpen}
+          onClose={handleCloseForm}
+          initialData={editingClient}
+          onClientSaved={handleClientSaved}
+        />
+      )}
     </div>
   );
 }

@@ -75,17 +75,17 @@ export type CaseFormValues = {
   clientId: string;
 };
 
-export type UserFormValues = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone?: string;
-  role: UserRole;
-  password?: string;
-  advocateEnrollmentNumber?: string;
-  isActive?: boolean;
-  confirmIndiaAdvocate?: boolean; // Added for signup
-};
+// export type UserFormValues = {
+//   firstName: string;
+//   lastName: string;
+//   email: string;
+//   // phone?: string;
+//   role: UserRole;
+//   password?: string;
+//   // advocateEnrollmentNumber?: string;
+//   isActive?: boolean;
+//   // confirmIndiaAdvocate?: boolean; // Added for signup
+// };
 
 export type HearingUpdateFormValues = {
   currentHearingStatus: CaseStatus;
