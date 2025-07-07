@@ -8,6 +8,7 @@ const API = {
   GET_CLIENT: (id) => `/advocate/clients/${id}`,
   UPDATE_CLIENT: (id) => `/advocate/clients/${id}`,
   DELETE_CLIENT: (id) => `/advocate/clients/${id}`,
+  UPDATE_CLIENT_STATUS: (id) => `/advocate/clients/${id}/status`,
   LIST_CLIENTS: '/advocate/clients',
 
   ADD_CASE: '/advocate/add-case',
@@ -15,14 +16,17 @@ const API = {
   UPDATE_CASE: (id) => `/advocate/cases/${id}`,
   DELETE_CASE: (id) => `/advocate/cases/${id}`,
   LIST_CASES: '/advocate/cases',
-  UPLOAD_DOCUMENT: '/advocate/upload-document',
+
+  ADD_DOCUMENT: (id) => `/advocate/cases/${id}/add-document`,
+  UPDATE_HEARING: (id) => `/advocate/cases/${id}/update-hearing`,
+  ADD_NOTE: (id) =>  `/advocate/cases/${id}/add-note`,
 
   // SuperAdmin
   ADD_ADVOCATE: '/superadmin/add-advocate',
-  GET_ADVOCATE: (id) => `/superadmin/advocate/${id}`,
-  UPDATE_ADVOCATE: (id) => `/superadmin/advocate/${id}`,
-  DELETE_ADVOCATE: (id) => `/superadmin/advocate/${id}`,
-  LIST_ADVOCATES: '/superadmin/advocate'
+  GET_ADVOCATE: (id) => `/superadmin/advocates/${id}`,
+  UPDATE_ADVOCATE: (id) => `/superadmin/advocates/${id}`,
+  DELETE_ADVOCATE: (id) => `/superadmin/advocates/${id}`,
+  LIST_ADVOCATES: '/superadmin/advocates'
 };
 
 export default API;

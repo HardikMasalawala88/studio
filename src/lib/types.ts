@@ -87,7 +87,7 @@ export type CaseFormValues = {
 //   // confirmIndiaAdvocate?: boolean; // Added for signup
 // };
 
-export type HearingUpdateFormValues = {
+export type w = {
   currentHearingStatus: CaseStatus;
   currentHearingNotes?: string;
   nextHearingDate?: Date;

@@ -12,6 +12,7 @@ class User(BaseEntity):
     username: str
     password: str
     confirmPassword: Optional[str] = None
+    isActive: bool = True
     # confirmIndiaAdvocate: bool
     # userSubscriptions: List["UserSubscription"] = []
     # cases: List["Case"] = []

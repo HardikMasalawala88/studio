@@ -40,9 +40,11 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { UserFormValues, ClientData } from "@/lib/model";
+import { useAuth } from "@/context/AuthContext";
 
 export function ClientList() {
   const { toast } = useToast();
+  const { user } = useAuth();
   // const [clients, setClients] = useState<UserFormValues[]>([]);
   const [clients, setClients] = useState<ClientData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +64,7 @@ export function ClientList() {
       const response = await ApiService.listClients();
       const data = response.data;
 
-      const fetchedClients: ClientData[] = data.map((client: any) => ({
+      const allClients: ClientData[] = data.map((client: any) => ({
         id: client.id || client.user?._id,
         createdBy: client.createdBy,
         modifiedBy: client.modifiedBy,
@@ -73,10 +75,15 @@ export function ClientList() {
           ...client.user,
           uid: client.id || client.user?._id,
           phone: client.user.phone ?? "",
-          isActive: true, // or from `client.user.isActive`
+          isActive: client.user.isActive ?? true, // or from `client.user.isActive`
         },
       }));
-      setClients(fetchedClients);
+      // setClients(allClients);
+      const filterByAdvocate =
+        user?.role === "Advocate"
+          ? allClients.filter((c) => c.user.createdBy === user.email)
+          : allClients;
+      setClients(filterByAdvocate);
     } catch (error: any) {
       toast({
         title: "Error loading clients",
@@ -229,9 +236,41 @@ export function ClientList() {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() =>
-                                toast({ title: "Not implemented" })
-                              }
+                              onClick={async () => {
+                                const newStatus = !client.user.isActive;
+                                try {
+                                  await ApiService.updateClientStatus(
+                                    client.id,
+                                    newStatus
+                                  );
+                                  toast({
+                                    title: `Client ${
+                                      newStatus ? "Activated" : "Deactivated"
+                                    }`,
+                                  });
+
+                                  // Update state
+                                  setClients((prev) =>
+                                    prev.map((c) =>
+                                      c.id === client.id
+                                        ? {
+                                            ...c,
+                                            user: {
+                                              ...c.user,
+                                              isActive: newStatus,
+                                            },
+                                          }
+                                        : c
+                                    )
+                                  );
+                                } catch (err) {
+                                  toast({
+                                    title: "Error updating status",
+                                    description: "Something went wrong",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
                             >
                               Confirm
                             </AlertDialogAction>

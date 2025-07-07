@@ -62,7 +62,6 @@ export async function createUser(userData: UserFormValues): Promise<AuthUser> {
     if (trialPlan) {
         newUser.subscriptionPlanId = trialPlan.id;
         newUser.subscriptionExpiryDate = addMonths(new Date(), trialPlan.durationMonths);
-        console.log(`[UserService] Creating Advocate: ${newUser.firstName} ${newUser.lastName}. Free trial assigned, expires: ${newUser.subscriptionExpiryDate}.`);
     } else {
         console.warn("[UserService] Free trial plan not found during user creation.");
     }
@@ -152,7 +151,6 @@ export async function updateAdvocateSubscription(userId: string, planId: Subscri
     lastPaymentCurrency: 'INR',
     lastPaymentTransactionId: `MOCK_PHONEPE_${Date.now()}` 
   };
-  console.log(`[UserService] Subscription updated for ${MOCK_USERS_DB[userIndex].email} to ${plan.name}. Expires: ${newExpiryDate}`);
   return MOCK_USERS_DB[userIndex];
 }
 

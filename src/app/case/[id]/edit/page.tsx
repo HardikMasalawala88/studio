@@ -51,7 +51,6 @@ export default function EditCasePage() {
   useEffect(() => {
     const fetchCase = async () => {
       try {
-        debugger
         setLoading(true);
         const response = await ApiService.getCase(caseId);
         const data = response.data;
@@ -112,7 +111,7 @@ export default function EditCasePage() {
         title="Edit Case"
         description={`Updating details for case: ${caseData.CaseTitle}`}
       />
-      {user?.role === USER_ROLES.ADVOCATE && !isSubscriptionActive && (
+      {/* {user?.role === USER_ROLES.ADVOCATE && !isSubscriptionActive && (
         <Alert variant="destructive" className="mb-6">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Subscription Required</AlertTitle>
@@ -124,7 +123,7 @@ export default function EditCasePage() {
             .
           </AlertDescription>
         </Alert>
-      )}
+      )} */}
       <CaseForm initialData={caseData as Case} />
     </AppLayout>
   );

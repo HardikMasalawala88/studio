@@ -45,7 +45,6 @@ export function LoginForm() {
 
   const handleLogin = async () => {
     const { email, password } = form.getValues();
-    console.log("🚀 Login values:", { email, password });
     await login(email, password);
   };
 

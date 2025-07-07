@@ -111,7 +111,6 @@
 //   }, []);
 
   // const login = useCallback(async (email: string, _password?: string) => {
-  //   debugger
   //   setLoading(true);
   //   await new Promise(resolve => setTimeout(resolve, 500));
   //   try {
@@ -163,7 +162,6 @@
 //     async (email: string, password?: string) => {
 //       setLoading(true);
 //       try {
-//         console.log("🔁 Sending login data:", { email, password });
 
 //         const response = await ApiService.login({
 //           username: email,
@@ -226,7 +224,6 @@
 //       setLoading(true);
 //       await new Promise((resolve) => setTimeout(resolve, 500));
 //       try {
-//         debugger;
 //          const createdUser = await ApiService.register(values); 
       
 //       setUser(createdUser);

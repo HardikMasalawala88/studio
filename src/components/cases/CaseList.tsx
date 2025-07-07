@@ -46,36 +46,77 @@ import { ALL_CASE_STATUSES, CASE_STATUSES, USER_ROLES } from "@/lib/constants";
 import ApiService from "@/api/apiService";
 import { useToast } from "@/hooks/use-toast";
 import type { Case } from "@/lib/model";
+import { useAuth } from "@/context/AuthContext";
 
 export function CaseList() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("");
+  const [clientEmailsById, setClientEmailsById] = useState<
+    Record<string, string>
+  >({});
 
   useEffect(() => {
     async function loadCases() {
       setLoading(true);
       try {
         const res = await ApiService.listCases();
-        const fetchedCases: Case[] = res.data.map((item: any) => ({
-          id: item.id || item.CaseNumber || crypto.randomUUID(),
-          ClientId: item.ClientId,
-          AdvocateId: item.AdvocateId,
-          CaseTitle: item.CaseTitle,
-          CaseDetail: item.CaseDetail,
-          CaseNumber: item.CaseNumber,
-          HearingDate: new Date(item.HearingDate),
-          CourtLocation: item.CourtLocation,
-          CaseParentId: item.CaseParentId,
-          FilingDate: new Date(item.FilingDate),
-          CaseStatus: item.CaseStatus,
-          CaseDocuments: item.CaseDocuments || [],
+        const allCases: Case[] = res.data.map((item: any) => ({
+          id: item.id || item.caseNumber || crypto.randomUUID(),
+          clientId: item.clientId,
+          advocateId: item.advocateId,
+          caseTitle: item.caseTitle,
+          caseDetail: item.caseDetail,
+          caseNumber: item.caseNumber,
+          hearingDate: new Date(item.hearingDate),
+          courtLocation: item.courtLocation,
+          caseParentId: item.caseParentId,
+          filingDate: new Date(item.filingDate),
+          caseStatus: item.caseStatus,
+          caseDocuments: item.caseDocuments || [],
+          hearingHistory: item.hearingHistory || [],
         }));
-        // console.log(fetchedCases);
-        setCases(fetchedCases);
+
+        const filteredByRole =
+          user?.role === "Advocate"
+            ? allCases.filter((c) => c.advocateId === user.uid)
+            : user?.role === "Client"
+            ? allCases.filter((c) => c.clientId === user.uid)
+            : allCases;
+
+        setCases(filteredByRole);
+
+        const missingclientIds = filteredByRole
+          .map((c) => c.clientId)
+          .filter((id) => id && !clientEmailsById[id]);
+
+        await Promise.all(
+          missingclientIds.map(async (clientId) => {
+            try {
+              const clientRes = await ApiService.getClient(clientId);
+              const clientData = clientRes.data;
+
+              const clientname =
+                clientData?.user?.firstName && clientData?.user?.lastName
+                  ? `${clientData.user.firstName} ${clientData.user.lastName}`
+                  : clientData?.user?.email || "Unknown Client";
+
+              setClientEmailsById((prev) => ({
+                ...prev,
+                [clientId]: clientname,
+              }));
+            } catch (err: any) {
+              console.error(
+                `Failed to load client for ID ${clientId}:`,
+                err?.response?.data || err.message
+              );
+            }
+          })
+        );
       } catch (error) {
         toast({
           title: "Failed to load cases",
@@ -86,22 +127,22 @@ export function CaseList() {
       setLoading(false);
     }
     loadCases();
-  }, []);
+  }, [user]);
 
   const filteredCases = useMemo(() => {
     return cases
       .filter((c) =>
-        (c.CaseTitle ?? "").toLowerCase().includes(searchTerm.toLowerCase())
+        (c.caseTitle ?? "").toLowerCase().includes(searchTerm.toLowerCase())
       )
-      .filter((c) => statusFilter === "all" || c.CaseStatus === statusFilter)
+      .filter((c) => statusFilter === "all" || c.caseStatus === statusFilter)
       .filter((c) => {
         if (!dateFilter) return true;
         try {
           const filterDate = new Date(dateFilter + "T00:00:00");
           return (
-            c.HearingDate.getFullYear() === filterDate.getFullYear() &&
-            c.HearingDate.getMonth() === filterDate.getMonth() &&
-            c.HearingDate.getDate() === filterDate.getDate()
+            c.hearingDate.getFullYear() === filterDate.getFullYear() &&
+            c.hearingDate.getMonth() === filterDate.getMonth() &&
+            c.hearingDate.getDate() === filterDate.getDate()
           );
         } catch (e) {
           return true;
@@ -237,16 +278,20 @@ export function CaseList() {
             <TableBody>
               {filteredCases.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.CaseTitle}</TableCell>
-                  <TableCell>{c.CaseNumber}</TableCell>
-                  <TableCell>{c.ClientId}</TableCell>
-                  {/* <TableCell>{c.AdvocateId}</TableCell> */}
-                  <TableCell>{c.CourtLocation}</TableCell>
-                  {/* <TableCell>{format(new Date(c.HearingDate), "PPp")}</TableCell> */}
-                  <TableCell>{c.HearingDate.toISOString()}</TableCell>
+                  <TableCell className="font-medium">{c.caseTitle}</TableCell>
+                  <TableCell>{c.caseNumber}</TableCell>
                   <TableCell>
-                    <Badge variant={getStatusBadgeVariant(c.CaseStatus)}>
-                      {c.CaseStatus}
+                    {clientEmailsById[c.clientId] ?? "Loading..."}
+                  </TableCell>
+                  {/* <TableCell>{c.AdvocateId}</TableCell> */}
+                  <TableCell>{c.courtLocation}</TableCell>
+                  <TableCell>
+                    {format(new Date(c.hearingDate), "PPp")}
+                  </TableCell>
+                  {/* <TableCell>{c.HearingDate.toISOString()}</TableCell> */}
+                  <TableCell>
+                    <Badge variant={getStatusBadgeVariant(c.caseStatus)}>
+                      {c.caseStatus}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -288,7 +333,7 @@ export function CaseList() {
                             <AlertDialogDescription>
                               This action cannot be undone. This will
                               permanently delete the case titled &quot;
-                              {c.CaseTitle}&quot;.
+                              {c.caseTitle}&quot;.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

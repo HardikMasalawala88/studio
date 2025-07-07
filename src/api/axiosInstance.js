@@ -10,7 +10,7 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
   (config) => {
-    console.log(`[Request] ${config.method?.toUpperCase()} - ${config.url}`, config.data);
+    (`[Request] ${config.method?.toUpperCase()} - ${config.url}`, config.data);
     return config;
   },
   (error) => Promise.reject(error)

@@ -37,19 +37,34 @@ export type ClientData = {
 };
 
 // lib/types.ts or models/case.ts
+export interface HearingEntry {
+  hearingDate: string | Date;
+  note: string;
+  updatedBy: string;
+  createdAt?: string | Date;
+}
+
+export interface Note {
+  description: string;
+  createdAt?: string | Date;
+}
+
 export interface Case {
-  id: string; // inferred from deletion code
-  ClientId: string;
-  AdvocateId: string;
-  CaseTitle: string;
-  CaseDetail: string;
-  CaseNumber: string;
-  HearingDate: Date;
-  CourtLocation: string;
-  CaseParentId?: string;
-  FilingDate: Date;
-  CaseStatus: string;
-  CaseDocuments?: CaseDocument[];
+  id: string;
+  clientId: string;
+  advocateId: string;
+  caseTitle: string;
+  caseDetail: string;
+  caseNumber: string;
+  hearingDate: Date;
+  courtLocation: string;
+  caseParentId?: string;
+  filingDate: Date;
+  caseStatus: string;
+  caseDocuments?: CaseDocument[];
+  hearingHistory?: HearingEntry[];
+  notes?: Note[];
+
   createdBy?: string;
   modifiedBy?: string;
   createdAt?: string | Date;
@@ -57,13 +72,8 @@ export interface Case {
 }
 
 export interface CaseDocument {
-  id: string; 
   url: string;
   fileName: string;
   type: string;
-  caseId: string;
-  createdBy?: string;
-  modifiedBy?: string;
   createdAt?: string | Date;
-  modifiedAt?: string | Date;
 }

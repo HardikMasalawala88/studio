@@ -1,7 +1,7 @@
 "use client";
 
 // import type { Case, CaseDocument, Note, HearingEntry } from "@/lib/types";
-import type { Case, CaseDocument } from "@/lib/model";
+import type { Case, CaseDocument, Note } from "@/lib/model";
 import React, { useEffect, useState } from "react";
 import { getCaseById } from "@/lib/caseService";
 import { useParams, useRouter } from "next/navigation";
@@ -47,22 +47,8 @@ export function CaseDetail() {
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // useEffect(() => {
-  //   if (caseId) {
-  //     setLoading(true);
-
-  //       .then(data => {
-  //         if (data) {
-  //           setCaseData(data);
-  //         } else {
-  //           setError("Case not found.");
-  //         }
-  //       })
-  //       .catch(() => setError("Failed to load case details."))
-  //       .finally(() => setLoading(false));
-  //   }
-  // }, [caseId]);
+  const [clientEmail, setClientEmail] = useState<string>("Loading...");
+  const [advocateEmail, setAdvocateEmail] = useState<string>("Loading...");
 
   useEffect(() => {
     const fetchCase = async () => {
@@ -74,21 +60,56 @@ export function CaseDetail() {
         // Normalize backend data to match frontend structure
         const normalizedData: Case = {
           id: data.id,
-          CaseTitle: data.CaseTitle,
-          CaseDetail: data.CaseDetail,
-          CaseStatus: data.CaseStatus,
-          HearingDate: data.HearingDate,
-          FilingDate: data.FilingDate,
-          ClientId: data.ClientId,
-          AdvocateId: data.AdvocateId,
-          CaseDocuments: data.CaseDocuments || [],
-          CaseNumber: data.CaseNumber,
-          CaseParentId: data.CaseParentId,
-          CourtLocation: data.CourtLocation
-          // hearingHistory: [], // if available
+          caseTitle: data.caseTitle,
+          caseDetail: data.caseDetail,
+          caseStatus: data.caseStatus,
+          hearingDate: data.hearingDate,
+          filingDate: data.filingDate,
+          clientId: data.clientId,
+          advocateId: data.advocateId,
+          caseDocuments: data.caseDocuments || [],
+          caseNumber: data.caseNumber,
+          caseParentId: data.caseParentId,
+          courtLocation: data.courtLocation,
+          hearingHistory: data.hearingHistory || [],
+          notes: data.notes || [],
         };
 
         setCaseData(normalizedData);
+
+        // Fetch client email
+        if (data.clientId) {
+          try {
+            const clientRes = await ApiService.getClient(data.clientId);
+            const clientData = clientRes.data;
+            const clientname =
+              clientData?.user?.firstName + " " + clientData?.user?.lastName;
+            setClientEmail(clientname ?? "Unknown Client");
+          } catch {
+            setClientEmail("Unknown Client");
+          }
+        }
+
+        // Fetch advocate email
+        if (data.advocateId) {
+          try {
+            const advocateRes = await ApiService.getAdvocate(data.advocateId);
+            const advocateData = advocateRes.data;
+            const advocateName =
+              advocateData?.firstName + " " + advocateData?.lastName;
+            setAdvocateEmail(advocateName ?? "Unknown Advocate");
+          } catch {
+            setAdvocateEmail("Unknown Advocate");
+          }
+        }
+        // if (data.advocateId) {
+        //   if (user?.uid === data.advocateId) {
+        //     const advocateName = user?.firstName + " " + user?.lastName;
+        //     setAdvocateEmail(advocateName ?? "Unknown Advocate");
+        //   } else {
+        //     setAdvocateEmail("Unknown Advocate");
+        //   }
+        // }
       } catch (error) {
         console.error("Error fetching case:", error);
         setError("Failed to load case details.");
@@ -102,16 +123,16 @@ export function CaseDetail() {
     }
   }, [caseId]);
 
-  // const handleNoteAdded = (newNote: Note) => {
-  //   setCaseData((prev) =>
-  //     prev ? { ...prev, notes: [...(prev.notes || []), newNote] } : null
-  //   );
-  // };
+  const handleNoteAdded = (newNote: Note) => {
+    setCaseData((prev) =>
+      prev ? { ...prev, notes: [...(prev.notes || []), newNote] } : null
+    );
+  };
 
   const handleDocumentUploaded = (newDocument: CaseDocument) => {
     setCaseData((prev) =>
       prev
-        ? { ...prev, documents: [...(prev.CaseDocuments || []), newDocument] }
+        ? { ...prev, documents: [...(prev.caseDocuments || []), newDocument] }
         : null
     );
   };
@@ -160,8 +181,8 @@ export function CaseDetail() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={caseData.CaseTitle}
-        description={`Case ID: ${caseData.id} | Current Status: ${caseData.CaseStatus}`}
+        title={caseData.caseTitle}
+        description={`Case ID: ${caseData.id} | Current Status: ${caseData.caseStatus}`}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => router.back()}>
@@ -182,42 +203,34 @@ export function CaseDetail() {
         <InfoCard
           icon={<CalendarDays />}
           title="Next Hearing Date"
-          value={format(new Date(caseData.HearingDate), "PPPp")}
+          value={format(new Date(caseData.hearingDate), "PPPp")}
         />
-        <InfoCard
-          icon={<User />}
-          title="Client"
-          value={caseData.ClientId}
-        />
-        <InfoCard
-          icon={<Users />}
-          title="Advocate"
-          value={caseData.AdvocateId}
-        />
+        <InfoCard icon={<User />} title="Client" value={clientEmail} />
+        <InfoCard icon={<Users />} title="Advocate" value={advocateEmail} />
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Case Overview</CardTitle>
           <CardDescription>
-            Created on: {format(new Date(caseData.FilingDate), "PPP")}
+            Created on: {format(new Date(caseData.filingDate), "PPP")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-            {caseData.CaseDetail}
+            {caseData.caseDetail}
           </p>
         </CardContent>
       </Card>
 
-      {/* <Card>
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
             <History className="mr-2 h-5 w-5 text-primary" />
             Case Hearing History
           </CardTitle>
           <CardDescription>
-            Chronological record of hearings and status updates.
+            Chronological record of all hearings and status updates.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -232,35 +245,32 @@ export function CaseDetail() {
                       key={index}
                       className="p-3 rounded-md bg-muted/50 shadow-sm"
                     >
-                      <div className="flex items-center justify-between mb-1">
+                      <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2">
                           <CalendarDays className="h-4 w-4 text-primary" />
-                          <span className="font-semibold">
+                          <span className="font-medium">
                             {format(new Date(entry.hearingDate), "PPP")}
                           </span>
-                          <Badge
-                            variant={
-                              entry.status === "Upcoming"
-                                ? "default"
-                                : entry.status === "On Hold"
-                                ? "secondary"
-                                : "outline"
-                            }
-                          >
-                            {entry.status}
-                          </Badge>
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          Logged: {format(new Date(entry.updatedAt), "Pp")}
+                          {format(
+                            new Date(entry.createdAt || entry.hearingDate),
+                            "PPP"
+                          )}
                         </span>
                       </div>
-                      {entry.notes && (
-                        <p className="text-sm mt-1 whitespace-pre-wrap border-l-2 border-primary/50 pl-2 py-1">
-                          {entry.notes}
-                        </p>
+
+                      {entry.note && (
+                        <div className="text-sm whitespace-pre-wrap border-l-2 border-primary/50 pl-3 py-1 text-muted-foreground">
+                          {entry.note}
+                        </div>
                       )}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Updated by: {entry.updatedByName}
+
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Updated by:{" "}
+                        <span className="font-medium">
+                          {entry.updatedBy || "Unknown"}
+                        </span>
                       </p>
                     </div>
                   ))}
@@ -272,7 +282,7 @@ export function CaseDetail() {
             </p>
           )}
         </CardContent>
-      </Card> */}
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-6">
         <Card>
@@ -283,9 +293,9 @@ export function CaseDetail() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {caseData.CaseDocuments && caseData.CaseDocuments.length > 0 ? (
+            {caseData.caseDocuments && caseData.caseDocuments.length > 0 ? (
               <ul className="space-y-2">
-                {caseData.CaseDocuments.map((doc, index) => (
+                {caseData.caseDocuments.map((doc, index) => (
                   <li
                     key={index}
                     className="flex items-center justify-between p-2 bg-muted/50 rounded-md"
@@ -328,11 +338,11 @@ export function CaseDetail() {
           )}
         </Card>
 
-        {/* <CaseNotes
-          caseId={caseData.caseId}
+        <CaseNotes
+          caseId={caseData.id}
           initialNotes={caseData.notes || []}
           onNoteAdded={handleNoteAdded}
-        /> */}
+        />
       </div>
     </div>
   );

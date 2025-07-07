@@ -44,31 +44,21 @@ import ApiService from "@/api/apiService";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
-const CaseDocumentSchema = z.object({
-  id: z.string().optional(),
-  url: z.string().min(1, "Missing URL"),
-  fileName: z.string(),
-  type: z.string(),
-  caseId: z.string().optional(),
-  createdBy: z.string().optional(),
-  modifiedBy: z.string().optional(),
-  createdAt: z.union([z.string(), z.date()]).optional(),
-  modifiedAt: z.union([z.string(), z.date()]).optional(),
-});
-
 const formSchema = z.object({
   id: z.string().optional(),
-  CaseTitle: z.string().min(5),
-  CaseDetail: z.string().min(10),
-  CaseNumber: z.string().min(1),
-  HearingDate: z.date(),
-  FilingDate: z.date(),
-  CaseStatus: z.enum(ALL_CASE_STATUSES),
-  AdvocateId: z.string().optional(),
-  ClientId: z.string().min(1),
-  CourtLocation: z.string().min(1),
-  CaseParentId: z.string().optional(),
-  CaseDocuments: z.array(z.any()).optional().default([]),
+  caseTitle: z.string().min(5),
+  caseDetail: z.string().min(10),
+  caseNumber: z.string().min(1),
+  hearingDate: z.date(),
+  filingDate: z.date(),
+  caseStatus: z.enum(ALL_CASE_STATUSES),
+  advocateId: z.string().optional(),
+  clientId: z.string().min(1),
+  courtLocation: z.string().min(1),
+  caseParentId: z.string().optional(),
+  caseDocuments: z.array(z.any()).optional().default([]),
+  hearingHistory: z.array(z.any()).optional().default([]),
+  notes: z.array(z.any()).optional().default([]),
 });
 
 interface UserSelectItem {
@@ -88,7 +78,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
   const [clients, setClients] = useState<UserSelectItem[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<CaseDocument[]>(
-    initialData?.CaseDocuments ?? []
+    initialData?.caseDocuments ?? []
   );
   const [parentCases, setParentCases] = useState<
     { id: string; title: string }[]
@@ -101,30 +91,34 @@ export function CaseForm({ initialData }: CaseFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: initialData
       ? {
-          CaseTitle: initialData.CaseTitle,
-          CaseDetail: initialData.CaseDetail,
-          CaseNumber: initialData.CaseNumber,
-          HearingDate: initialData.HearingDate,
-          FilingDate: initialData.FilingDate,
-          CourtLocation: initialData.CourtLocation,
-          CaseParentId: initialData.CaseParentId ?? "",
-          CaseStatus: initialData.CaseStatus as CaseStatus,
-          AdvocateId: initialData.AdvocateId,
-          ClientId: initialData.ClientId,
-          CaseDocuments: initialData.CaseDocuments,
+          caseTitle: initialData.caseTitle,
+          caseDetail: initialData.caseDetail,
+          caseNumber: initialData.caseNumber,
+          hearingDate: initialData.hearingDate,
+          filingDate: initialData.filingDate,
+          courtLocation: initialData.courtLocation,
+          caseParentId: initialData.caseParentId ?? "",
+          caseStatus: initialData.caseStatus as CaseStatus,
+          advocateId: initialData.advocateId,
+          clientId: initialData.clientId,
+          caseDocuments: initialData.caseDocuments,
+          hearingHistory: initialData.hearingHistory,
+          notes: initialData.notes,
         }
       : {
-          CaseTitle: "",
-          CaseDetail: "",
-          CaseNumber: "",
-          HearingDate: new Date(),
-          FilingDate: new Date(),
-          CourtLocation: "",
-          CaseParentId: "",
-          CaseStatus: ALL_CASE_STATUSES[0],
-          AdvocateId: user?.role === USER_ROLES.ADVOCATE ? user.uid : "",
-          ClientId: user?.role === USER_ROLES.CLIENT ? user.uid : "",
-          CaseDocuments: [],
+          caseTitle: "",
+          caseDetail: "",
+          caseNumber: "",
+          hearingDate: new Date(),
+          filingDate: new Date(),
+          courtLocation: "",
+          caseParentId: "",
+          caseStatus: ALL_CASE_STATUSES[0],
+          advocateId: user?.role === USER_ROLES.ADVOCATE ? user.uid : "",
+          clientId: user?.role === USER_ROLES.CLIENT ? user.uid : "",
+          caseDocuments: [],
+          hearingHistory: [],
+          notes: [],
         },
   });
 
@@ -139,7 +133,11 @@ export function CaseForm({ initialData }: CaseFormProps) {
           ? clientRes
           : [];
 
-        const mappedClients = clientList.map((c: any) => ({
+        const filteredClients = clientList.filter(
+          (c) => c.user.createdBy === user?.email
+        );
+
+        const mappedClients = filteredClients.map((c: any) => ({
           id: c.id ?? c.uid ?? "",
           name: c.user.email ?? "Unnamed Client",
         }));
@@ -153,7 +151,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
             : [];
 
           const advocateCases = allCases
-            .filter((c: any) => c.AdvocateId === user.uid)
+            .filter((c: any) => c.advocateId === user.uid)
             .map((c: any) => ({
               id: c.id ?? "",
               title: `${c.CaseNumber} - ${c.CaseTitle}`,
@@ -164,7 +162,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
 
         if (!initialData) {
           if (user?.role === USER_ROLES.CLIENT) {
-            form.setValue("ClientId", user.uid);
+            form.setValue("clientId", user.uid);
           }
         }
       } catch (error: any) {
@@ -178,22 +176,24 @@ export function CaseForm({ initialData }: CaseFormProps) {
     }
     fetchUsers();
     form.reset({
-      CaseTitle: initialData?.CaseTitle ?? "",
-      CaseDetail: initialData?.CaseDetail ?? "",
-      CaseNumber: initialData?.CaseNumber ?? "",
-      HearingDate: initialData?.HearingDate
-        ? new Date(initialData.HearingDate)
+      caseTitle: initialData?.caseTitle ?? "",
+      caseDetail: initialData?.caseDetail ?? "",
+      caseNumber: initialData?.caseNumber ?? "",
+      hearingDate: initialData?.hearingDate
+        ? new Date(initialData.hearingDate)
         : new Date(),
-      FilingDate: initialData?.FilingDate
-        ? new Date(initialData.FilingDate)
+      filingDate: initialData?.filingDate
+        ? new Date(initialData.filingDate)
         : new Date(),
-      CourtLocation: initialData?.CourtLocation ?? "",
-      CaseParentId: initialData?.CaseParentId ?? "",
-      CaseStatus:
-        (initialData?.CaseStatus as CaseStatus) ?? ALL_CASE_STATUSES[0],
-      AdvocateId: initialData?.AdvocateId ?? "",
-      ClientId: initialData?.ClientId ?? "",
-      CaseDocuments: initialData?.CaseDocuments ?? [],
+      courtLocation: initialData?.courtLocation ?? "",
+      caseParentId: initialData?.caseParentId ?? "",
+      caseStatus:
+        (initialData?.caseStatus as CaseStatus) ?? ALL_CASE_STATUSES[0],
+      advocateId: initialData?.advocateId ?? "",
+      clientId: initialData?.clientId ?? "",
+      caseDocuments: initialData?.caseDocuments ?? [],
+      hearingHistory: initialData?.hearingHistory ?? [],
+      notes: initialData?.notes ?? [],
     });
   }, [form, user, initialData, toast]);
 
@@ -211,45 +211,41 @@ export function CaseForm({ initialData }: CaseFormProps) {
 
   async function uploadFiles(files: FileList): Promise<CaseDocument[]> {
     const uploaded: CaseDocument[] = [];
-    debugger;
+    if (!initialData?.id) return uploaded;
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const formData = new FormData();
-
       formData.append("file", file);
-      if (initialData?.id) {
-        formData.append("caseId", initialData.id);
+
+      try {
+        let response;
+
+        response = await ApiService.uploadDocument(initialData.id, formData);
+        // const uploadedDoc = response.document;
+
+        uploaded.push({
+          url: response?.url ?? "",
+          fileName: response?.fileName ?? file.name,
+          type: response?.type ?? file.type,
+          createdAt: response?.createdAt ?? new Date().toISOString(),
+        });
+      } catch (error: any) {
+        console.error(`Error uploading file ${file.name}:`, error);
+        toast({
+          title: "Upload Error",
+          description: `Failed to upload ${file.name}`,
+          variant: "destructive",
+        });
       }
-
-      // Optional: Debug what’s being sent
-      for (let pair of formData.entries()) {
-        console.log(pair[0], pair[1]);
-      }
-
-      const response = await ApiService.uploadDocument(formData);
-      const uploadedDoc = response.data.document;
-
-      uploaded.push({
-        id: response?.data?.id ?? "",
-        url: uploadedDoc?.url ?? "",
-        fileName: uploadedDoc?.fileName ?? file.name,
-        type: uploadedDoc?.type ?? file.type,
-        caseId: initialData?.id ?? "",
-        createdBy: initialData?.createdBy ?? "",
-        modifiedBy: initialData?.createdBy ?? "",
-        createdAt: new Date().toISOString(),
-        modifiedAt: new Date().toISOString(),
-      });
     }
 
     return uploaded;
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    debugger;
     setIsLoading(true);
     let newUploadedDocs: CaseDocument[] = [];
-    debugger;
     // Upload only if user selected new files
     if (selectedFiles && selectedFiles.length > 0) {
       newUploadedDocs = await uploadFiles(selectedFiles); // will update Case + CaseDocument tables
@@ -257,26 +253,35 @@ export function CaseForm({ initialData }: CaseFormProps) {
 
     const payload = {
       ...(initialData?.id ? { id: initialData.id } : { id: "" }),
-      CaseTitle: values.CaseTitle,
-      CaseDetail: values.CaseDetail,
-      CaseNumber: values.CaseNumber,
-      HearingDate: values.HearingDate.toISOString(),
-      FilingDate: values.FilingDate.toISOString(),
-      CourtLocation: values.CourtLocation,
-      CaseParentId: values.CaseParentId || "",
-      CaseStatus: values.CaseStatus,
-      AdvocateId: user?.uid,
-      ClientId: values.ClientId,
+      caseTitle: values.caseTitle,
+      caseDetail: values.caseDetail,
+      caseNumber: values.caseNumber,
+      hearingDate: values.hearingDate.toISOString(),
+      filingDate: values.filingDate.toISOString(),
+      courtLocation: values.courtLocation,
+      caseParentId: values.caseParentId || "",
+      caseStatus: values.caseStatus,
+      advocateId: user?.uid,
+      clientId: values.clientId,
       createdBy: initialData ? initialData.createdBy : user?.email,
       modifiedBy: initialData?.createdBy,
       createdAt: initialData?.createdAt ?? new Date().toISOString(),
       modifiedAt: initialData?.modifiedAt ?? new Date().toISOString(),
       ...(newUploadedDocs.length > 0 && {
-        CaseDocuments: [
-          ...(initialData?.CaseDocuments ?? []),
+        caseDocuments: [
+          ...(initialData?.caseDocuments ?? []),
           ...newUploadedDocs,
         ],
       }),
+      hearingHistory: initialData?.hearingHistory ?? [
+        {
+          hearingDate: values.hearingDate.toISOString(),
+          note: "Initial hearing scheduled",
+          updatedBy: user?.email ?? "",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      notes: initialData?.notes ?? [],
     };
 
     try {
@@ -309,14 +314,12 @@ export function CaseForm({ initialData }: CaseFormProps) {
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit, (errors) => {
-          console.log("Validation errors", errors);
-        })}
+        onSubmit={form.handleSubmit(onSubmit, (errors) => {})}
         className="space-y-8"
       >
         <FormField
           control={form.control}
-          name="CaseTitle"
+          name="caseTitle"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Case Title</FormLabel>
@@ -334,7 +337,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
 
         <FormField
           control={form.control}
-          name="CaseDetail"
+          name="caseDetail"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Case Description</FormLabel>
@@ -353,7 +356,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
         <div className="grid md:grid-cols-2 gap-8">
           <FormField
             control={form.control}
-            name="CaseNumber"
+            name="caseNumber"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Case Number</FormLabel>
@@ -371,7 +374,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
 
           <FormField
             control={form.control}
-            name="CourtLocation"
+            name="courtLocation"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Court Location</FormLabel>
@@ -391,7 +394,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
         <div className="grid md:grid-cols-2 gap-8">
           <FormField
             control={form.control}
-            name="HearingDate"
+            name="hearingDate"
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Hearing Date</FormLabel>
@@ -429,7 +432,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
           />
           <FormField
             control={form.control}
-            name="FilingDate"
+            name="filingDate"
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Filing Date</FormLabel>
@@ -470,7 +473,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
         <div className="grid md:grid-cols-2 gap-8">
           <FormField
             control={form.control}
-            name="CaseStatus"
+            name="caseStatus"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Case Status</FormLabel>
@@ -499,7 +502,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
 
           <FormField
             control={form.control}
-            name="CaseParentId"
+            name="caseParentId"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Parent Case</FormLabel>
@@ -536,7 +539,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
         <div className="grid md:grid-cols-2 gap-8">
           <FormField
             control={form.control}
-            name="ClientId"
+            name="clientId"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Client</FormLabel>
@@ -571,7 +574,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
 
           <FormField
             control={form.control}
-            name="CaseDocuments"
+            name="caseDocuments"
             render={() => (
               <FormItem>
                 <FormLabel>Case Document</FormLabel>

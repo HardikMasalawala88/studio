@@ -8,7 +8,6 @@ const ApiService = {
       username: data.username || data.Username,
       password: data.password || data.Password,
     };
-    console.log("ApiService.login payload:", payload);
     return axiosInstance.post('/account/login', payload);
   },
   register: (data) => axiosInstance.post('/account/register', data),
@@ -17,6 +16,7 @@ const ApiService = {
   getClient: (id) => axiosInstance.get(API.GET_CLIENT(id)),
   updateClient: (id, data) => axiosInstance.put(API.UPDATE_CLIENT(id), data),
   deleteClient: (id) => axiosInstance.delete(API.DELETE_CLIENT(id)),
+  updateClientStatus: (id, data) => axiosInstance.put(API.UPDATE_CLIENT_STATUS(id), data),
   listClients: () => axiosInstance.get(API.LIST_CLIENTS),
 
   addCase: (data) => axiosInstance.post(API.ADD_CASE, data),
@@ -25,13 +25,14 @@ const ApiService = {
   deleteCase: (id) => axiosInstance.delete(API.DELETE_CASE(id)),
   listCases: () => axiosInstance.get(API.LIST_CASES),
 
-  uploadDocument: (data) =>
-  axiosInstance.post(API.UPLOAD_DOCUMENT, data, {
-    headers: {
-      'Content-Type': undefined, // 🚫 Important: let Axios set it automatically
-    },
-  }),
+  uploadDocument: (id, data) =>
+  axiosInstance.put(API.ADD_DOCUMENT(id), data, {
+    headers: { "Content-Type": "multipart/form-data" },
+  }).then((res) => res.data),
 
+  // uploadDocument: (id, data) => axiosInstance.put(API.ADD_DOCUMENT(id), data).then((res) => res.data),
+  updateHearing: (id, data) => axiosInstance.put(API.UPDATE_HEARING(id), data).then((res) => res.data),
+  addNote: (id, data) => axiosInstance.put(API.ADD_NOTE(id), data).then((res) => res.data),
   // uploadDocument: (data) => axiosInstance.post(API.UPLOAD_DOCUMENT, data),
 
   addAdvocate: (data, specialization) =>

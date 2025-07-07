@@ -1,6 +1,7 @@
 from datetime import datetime
 from http.client import InvalidURL
 from typing import List
+from models.auth import RegisterFM
 from fastapi import APIRouter, HTTPException, Request
 from db.mongodb import db
 from models.user import User
@@ -84,17 +85,41 @@ async def get_all_advocates():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
-@router.get("/Advocates/{Advocate_id}", response_model=Advocate)
-async def get_Advocate(Advocate_id: str):
-    AdvocateCollection = db.advocates
-    Advocate = await AdvocateCollection.find_one({"_id": ObjectId(Advocate_id)})
-    if Advocate:
-        return Advocate(**Advocate, id=str(Advocate["_id"]))
-    raise HTTPException(status_code=404, detail="Advocate not found")
+# @router.get("/Advocates/{Advocate_id}", response_model=Advocate)
+# async def get_Advocate(Advocate_id: str):
+#     AdvocateCollection = db.advocates
+#     Advocate = await AdvocateCollection.find_one({"_id": ObjectId(Advocate_id)})
+#     if Advocate:
+#         return Advocate(**Advocate, id=str(Advocate["_id"]))
+#     raise HTTPException(status_code=404, detail="Advocate not found")
 
-@router.delete("/Advocates/{Advocate_id}")
-async def remove_Advocate(Advocate_id: str):
-    res = await db.advocates.delete_one({"_id": ObjectId(Advocate_id)})
-    if res.deleted_count:
-        return {"status": "Success", "message": "Advocate Removed Successfully...!"}
-    raise HTTPException(status_code=500, detail="Advocate deletion failed..!")
+@router.get("/advocates/{advocate_id}", response_model=RegisterFM)
+async def get_advocate_by_id(advocate_id: str):
+    try:
+        if not ObjectId.is_valid(advocate_id):
+            raise HTTPException(status_code=400, detail="Invalid advocate ID format.")
+
+        user = await db.users.find_one({"_id": ObjectId(advocate_id)})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found.")
+
+        # Add confirmPassword manually (required for RegisterFM)
+        user["uid"] = str(user["_id"])
+        user["confirmPassword"] = user["password"]
+
+        # Advocate sub-object (optional or nested under user)
+        advocate = await db.advocates.find_one({"_id": ObjectId(advocate_id)})
+        user["advocate"] = advocate or None
+
+        return RegisterFM(**user)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+# @router.delete("/Advocates/{Advocate_id}")
+# async def remove_Advocate(Advocate_id: str):
+#     res = await db.advocates.delete_one({"_id": ObjectId(Advocate_id)})
+#     if res.deleted_count:
+#         return {"status": "Success", "message": "Advocate Removed Successfully...!"}
+#     raise HTTPException(status_code=500, detail="Advocate deletion failed..!")

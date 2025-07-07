@@ -1,39 +1,55 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, CalendarCheck, Archive } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Briefcase, CalendarCheck, Archive } from "lucide-react";
+import { isAfter } from "date-fns";
 
-// Mock data fetching, replace with actual data source
-const fetchStats = async (role: string) => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  if (role === "Advocate" || role === "SuperAdmin") {
-    return { totalCases: 25, upcomingHearings: 5, closedCases: 15 };
-  }
-  if (role === "Client") {
-    return { totalCases: 3, upcomingHearings: 1, closedCases: 1 };
-  }
-  return { totalCases: 0, upcomingHearings: 0, closedCases: 0 };
-};
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import ApiService from "@/api/apiService";
+import type { Case } from "@/lib/model";
 
 interface DashboardStatsProps {
   userRole: string;
+  userId?: string;
 }
 
-export function DashboardStats({ userRole }: DashboardStatsProps) {
-  const [stats, setStats] = useState({ totalCases: 0, upcomingHearings: 0, closedCases: 0 });
+export function DashboardStats({ userRole, userId }: DashboardStatsProps) {
+  const [stats, setStats] = useState({
+    totalCases: 0,
+    upcomingHearings: 0,
+    closedCases: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadStats = async () => {
       setLoading(true);
-      const data = await fetchStats(userRole);
-      setStats(data);
-      setLoading(false);
+      try {
+        const res = await ApiService.listCases();
+        const allCases: Case[] = res.data || [];
+        // Filter cases based on user role
+        const filteredCases = userRole === "Advocate"
+          ? allCases.filter(c => c.advocateId === userId)
+          : userRole === "Client"
+          ? allCases.filter(c => c.clientId === userId)
+          : allCases;
+
+        const totalCases = filteredCases.length;
+        const closedCases = filteredCases.filter(c => c.caseStatus === "Closed").length;
+        const upcomingHearings = filteredCases.filter(
+          c => c.hearingDate && isAfter(new Date(c.hearingDate), new Date())
+        ).length;
+
+        setStats({ totalCases, upcomingHearings, closedCases });
+      } catch (err) {
+        console.error("Error fetching dashboard stats:", err);
+      } finally {
+        setLoading(false);
+      }
     };
+
     loadStats();
-  }, [userRole]);
+  }, [userRole, userId]);
 
   if (loading) {
     return (

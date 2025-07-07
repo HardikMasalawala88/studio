@@ -48,6 +48,7 @@ const createSchema = z.object({
       email: z.string().email("Invalid email."),
       password: z.string().min(8, "Password must be at least 8 characters."),
       confirmPassword: z.string(),
+      isActive: z.boolean(),
     })
     .refine((data) => data.password === data.confirmPassword, {
       path: ["confirmPassword"],
@@ -61,7 +62,8 @@ const updateSchema = z.object({
     lastName: z.string().min(1, "Last name is required."),
     email: z.string().email("Invalid email."),
     password: z.string().optional(),
-    confirmPassword: z.string().optional(), 
+    confirmPassword: z.string().optional(),
+    isActive: z.boolean(),
   }),
 });
 
@@ -85,88 +87,89 @@ export function ClientForm({
         firstName: initialData?.user?.firstName ?? "",
         lastName: initialData?.user?.lastName ?? "",
         email: initialData?.user?.email ?? "",
-        password: "",
-        confirmPassword: "",
+        password: initialData?.user?.password ?? "",
+        confirmPassword: initialData?.user?.confirmPassword ?? "",
+        isActive: initialData?.user?.isActive ?? true,
       },
     },
   });
 
   useEffect(() => {
-    debugger
     if (isOpen) {
       form.reset({
         user: {
           firstName: initialData?.user?.firstName ?? "",
           lastName: initialData?.user?.lastName ?? "",
           email: initialData?.user?.email ?? "",
-          password: "",
-          confirmPassword: "",
+          password: initialData?.user?.confirmPassword ?? "",
+          confirmPassword: initialData?.user?.confirmPassword ?? "",
+          isActive: initialData?.user?.isActive ?? true,  
         },
       });
     }
   }, [isOpen, initialData, form]);
 
- async function onSubmit(values: FormType) {
-  setIsLoading(true);
-  try {
-    let response;
+  async function onSubmit(values: FormType) {
+    setIsLoading(true);
+    try {
+      let response;
 
-    const userPayload: UserFormValues = {
-      // uid: initialData?.user.uid,
-      ...values.user,
-      username: values.user.email,
-      role: USER_ROLES.CLIENT,
-      password: values.user.password ?? "",
-      confirmPassword: values.user.confirmPassword ?? "",
-      createdBy: initialData ? initialData.user.createdBy : user?.email,
-      modifiedBy: initialData?.createdBy,
-      createdAt: initialData?.user.createdAt ?? new Date(),
-      modifiedAt: new Date()
-    };
-
-    if (initialData) {
-      // ✅ update-client expects nested "user" and "cases"
-      response = await ApiService.updateClient(initialData.id, {
-        id: initialData.id,
-        user: { ...userPayload, uid: initialData.user.uid },
-        modifiedBy: initialData.createdBy,
+      const userPayload: UserFormValues = {
+        // uid: initialData?.user.uid,
+        ...values.user,
+        username: values.user.email,
+        role: USER_ROLES.CLIENT,
+        password: initialData ? initialData.user.password : values.user.password,
+        confirmPassword: initialData ? initialData.user.confirmPassword : values.user.confirmPassword,
+        createdBy: initialData ? initialData.user.createdBy : user?.email,
+        modifiedBy: initialData?.user?.createdBy,
+        createdAt: initialData?.user.createdAt ?? new Date(),
         modifiedAt: new Date(),
-        cases: initialData.cases ?? []
-      });
+        isActive: initialData ? initialData.user.isActive : true, 
+      };
 
-      toast({
-        title: "Client updated",
-        description: "Client has been updated successfully."
-      });
-    } else {
-      // ✅ add-client expects FLAT User object
-      response = await ApiService.addClient(userPayload);
+      if (initialData) {
+        // ✅ update-client expects nested "user" and "cases"
+        response = await ApiService.updateClient(initialData.id, {
+          id: initialData.id,
+          user: { ...userPayload, uid: initialData.user.uid },
+          modifiedBy: initialData?.user.createdBy,
+          modifiedAt: new Date(),
+          cases: initialData.cases ?? [],
+        });
 
-      toast({
-        title: "Client created",
-        description: "Client has been created successfully."
-      });
+        toast({
+          title: "Client updated",
+          description: "Client has been updated successfully.",
+        });
+      } else {
+        // ✅ add-client expects FLAT User object
+        response = await ApiService.addClient(userPayload);
+
+        toast({
+          title: "Client created",
+          description: "Client has been created successfully.",
+        });
+      }
+      const client = response?.data ?? response;
+      onClientSaved(client);
+      onClose();
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail;
+      let msg = "Something went wrong.";
+      if (Array.isArray(detail)) {
+        msg = detail.map((d: any) => d.msg).join("\n");
+      } else if (typeof detail === "string") {
+        msg = detail;
+      } else if (error.message) {
+        msg = error.message;
+      }
+
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
-    const client = response?.data ?? response;
-    onClientSaved(client);
-    onClose();
-  } catch (error: any) {
-    const detail = error?.response?.data?.detail;
-    let msg = "Something went wrong.";
-    if (Array.isArray(detail)) {
-      msg = detail.map((d: any) => d.msg).join("\n");
-    } else if (typeof detail === "string") {
-      msg = detail;
-    } else if (error.message) {
-      msg = error.message;
-    }
-
-    toast({ title: "Error", description: msg, variant: "destructive" });
-  } finally {
-    setIsLoading(false);
   }
-}
-
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

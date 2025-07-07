@@ -38,7 +38,7 @@ export default function NewCasePage() {
   return (
     <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.SUPER_ADMIN]}>
       <PageHeader title="Create New Case" description="Fill in the details to register a new case." />
-      {user?.role === USER_ROLES.ADVOCATE && !isSubscriptionActive && (
+      {/* {user?.role === USER_ROLES.ADVOCATE && !isSubscriptionActive && (
          <Alert variant="destructive" className="mb-6">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Subscription Required</AlertTitle>
@@ -47,7 +47,7 @@ export default function NewCasePage() {
             Please <Link href="/subscription" className="font-medium underline">renew your subscription</Link>.
           </AlertDescription>
         </Alert>
-      )}
+      )} */}
       <CaseForm />
     </AppLayout>
   );
