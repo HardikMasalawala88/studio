@@ -31,6 +31,7 @@ import { USER_ROLES } from "@/lib/constants";
 import type { ClientData, UserFormValues } from "@/lib/model";
 import { createDeflate } from "zlib";
 import { useAuth } from "@/context/AuthContext";
+import { Eye, EyeOff } from "lucide-react";
 
 interface ClientFormProps {
   isOpen: boolean;
@@ -43,8 +44,20 @@ interface ClientFormProps {
 const createSchema = z.object({
   user: z
     .object({
-      firstName: z.string().min(1, "First name is required."),
-      lastName: z.string().min(1, "Last name is required."),
+      firstName: z
+        .string()
+        .min(1, { message: "First name is required." })
+        .regex(/^[A-Za-z\s]+$/, {
+          message: "First name must contain only letters.",
+        }),
+
+      lastName: z
+        .string()
+        .min(1, { message: "Last name is required." })
+        .regex(/^[A-Za-z\s]+$/, {
+          message: "Last name must contain only letters.",
+        }),
+
       email: z.string().email("Invalid email."),
       password: z.string().min(8, "Password must be at least 8 characters."),
       confirmPassword: z.string(),
@@ -58,8 +71,20 @@ const createSchema = z.object({
 
 const updateSchema = z.object({
   user: z.object({
-    firstName: z.string().min(1, "First name is required."),
-    lastName: z.string().min(1, "Last name is required."),
+    firstName: z
+      .string()
+      .min(1, { message: "First name is required." })
+      .regex(/^[A-Za-z\s]+$/, {
+        message: "First name must contain only letters.",
+      }),
+
+    lastName: z
+      .string()
+      .min(1, { message: "Last name is required." })
+      .regex(/^[A-Za-z\s]+$/, {
+        message: "Last name must contain only letters.",
+      }),
+
     email: z.string().email("Invalid email."),
     password: z.string().optional(),
     confirmPassword: z.string().optional(),
@@ -76,6 +101,8 @@ export function ClientForm({
   const { toast } = useToast();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const currentSchema = initialData ? updateSchema : createSchema;
   type FormType = z.infer<typeof currentSchema>;
@@ -103,7 +130,7 @@ export function ClientForm({
           email: initialData?.user?.email ?? "",
           password: initialData?.user?.confirmPassword ?? "",
           confirmPassword: initialData?.user?.confirmPassword ?? "",
-          isActive: initialData?.user?.isActive ?? true,  
+          isActive: initialData?.user?.isActive ?? true,
         },
       });
     }
@@ -119,13 +146,17 @@ export function ClientForm({
         ...values.user,
         username: values.user.email,
         role: USER_ROLES.CLIENT,
-        password: initialData ? initialData.user.password : values.user.password,
-        confirmPassword: initialData ? initialData.user.confirmPassword : values.user.confirmPassword,
+        password: initialData
+          ? initialData.user.password
+          : values.user.password,
+        confirmPassword: initialData
+          ? initialData.user.confirmPassword
+          : values.user.confirmPassword,
         createdBy: initialData ? initialData.user.createdBy : user?.email,
         modifiedBy: initialData?.user?.createdBy,
         createdAt: initialData?.user.createdAt ?? new Date(),
         modifiedAt: new Date(),
-        isActive: initialData ? initialData.user.isActive : true, 
+        isActive: initialData ? initialData.user.isActive : true,
       };
 
       if (initialData) {
@@ -196,7 +227,7 @@ export function ClientForm({
                 name="user.firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>First Name</FormLabel>
+                    <FormLabel>First Name*</FormLabel>
                     <FormControl>
                       <Input placeholder="John" {...field} />
                     </FormControl>
@@ -209,7 +240,7 @@ export function ClientForm({
                 name="user.lastName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Last Name</FormLabel>
+                    <FormLabel>Last Name*</FormLabel>
                     <FormControl>
                       <Input placeholder="Doe" {...field} />
                     </FormControl>
@@ -224,7 +255,7 @@ export function ClientForm({
               name="user.email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>Email*</FormLabel>
                   <FormControl>
                     <Input
                       type="email"
@@ -246,6 +277,69 @@ export function ClientForm({
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            type={showPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground focus:outline-none"
+                          >
+                            {showPassword ? (
+                              <EyeOff className="w-5 h-5" />
+                            ) : (
+                              <Eye className="w-5 h-5" />
+                            )}
+                          </button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="user.confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            type={showConfirmPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setShowConfirmPassword((prev) => !prev)
+                            }
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground focus:outline-none"
+                          >
+                            {showConfirmPassword ? (
+                              <EyeOff className="w-5 h-5" />
+                            ) : (
+                              <Eye className="w-5 h-5" />
+                            )}
+                          </button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {/* <FormField
+                  control={form.control}
+                  name="user.password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password*</FormLabel>
+                      <FormControl>
                         <Input
                           type="password"
                           placeholder="••••••••"
@@ -262,7 +356,7 @@ export function ClientForm({
                   name="user.confirmPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Confirm Password</FormLabel>
+                      <FormLabel>Confirm Password*</FormLabel>
                       <FormControl>
                         <Input
                           type="password"
@@ -273,7 +367,7 @@ export function ClientForm({
                       <FormMessage />
                     </FormItem>
                   )}
-                />
+                /> */}
               </>
             )}
 

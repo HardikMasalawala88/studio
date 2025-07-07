@@ -25,6 +25,9 @@ export function AdvocateDashboard() {
   const { user } = useAuth();
   const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
+  const [clientEmailsById, setClientEmailsById] = useState<
+    Record<string, string>
+  >({});
 
   useEffect(() => {
     const fetchCases = async () => {
@@ -36,10 +39,39 @@ export function AdvocateDashboard() {
           (c: any) => c.advocateId === user.uid
         );
         setCases(advocateCases);
-      } catch (error) {
-        console.error("Error fetching case data:", error);
-      } finally {
-        setLoading(false);
+
+        const missingclientIds = advocateCases
+          .map((c: any) => c.clientId)
+          .filter((id: any) => id && !clientEmailsById[id]);
+
+        await Promise.all(
+          missingclientIds.map(async (clientId: any) => {
+            try {
+              const clientRes = await ApiService.getClient(clientId);
+              const clientData = clientRes.data;
+
+              const clientname =
+                clientData?.user?.firstName && clientData?.user?.lastName
+                  ? `${clientData.user.firstName} ${clientData.user.lastName}`
+                  : clientData?.user?.email || "Unknown Client";
+
+              setClientEmailsById((prev) => ({
+                ...prev,
+                [clientId]: clientname,
+              }));
+            } catch (err: any) {
+              console.error(
+                `Failed to load client for ID ${clientId}:`,
+                err?.response?.data || err.message
+              );
+            }
+          })
+        );
+      } catch (err: any) {
+        console.error(
+          "Failed to fetch cases:",
+          err?.response?.data || err.message
+        );
       }
     };
 
@@ -49,8 +81,7 @@ export function AdvocateDashboard() {
   if (!user || user.role !== USER_ROLES.ADVOCATE) return null;
 
   const todayHearings = cases.filter(
-    (c) =>
-            new Date(c.hearingDate).toDateString() === new Date().toDateString() 
+    (c) => new Date(c.hearingDate).toDateString() === new Date().toDateString()
   );
 
   const closedCases = cases.filter((c) => c.caseStatus === "Closed");
@@ -95,7 +126,7 @@ export function AdvocateDashboard() {
         }
       />
 
-      <DashboardStats userRole={user.role} userId={user.uid}/>
+      <DashboardStats userRole={user.role} userId={user.uid} />
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -115,7 +146,8 @@ export function AdvocateDashboard() {
                     <div>
                       <p className="font-medium">{hearing.caseTitle}</p>
                       <p className="text-sm text-muted-foreground">
-                        Client: {hearing.clientId}
+                        Client:{" "}
+                        {clientEmailsById[hearing.clientId] ?? "Loading..."}
                       </p>
                     </div>
                     <span className="text-sm font-semibold text-primary">

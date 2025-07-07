@@ -36,11 +36,25 @@ import { useAuth } from "@/context/AuthContext";
 import { USER_ROLES, UserRole, APP_NAME } from "@/lib/constants";
 import { Loader2 } from "lucide-react";
 import type { UserFormValues } from "@/lib/model";
+import { Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
 
 const formSchema = z
   .object({
-    firstName: z.string().min(1, { message: "First name is required." }),
-    lastName: z.string().min(1, { message: "Last name is required." }),
+    firstName: z
+      .string()
+      .min(1, { message: "First name is required." })
+      .regex(/^[A-Za-z\s]+$/, {
+        message: "First name must contain only letters.",
+      }),
+
+    lastName: z
+      .string()
+      .min(1, { message: "Last name is required." })
+      .regex(/^[A-Za-z\s]+$/, {
+        message: "Last name must contain only letters.",
+      }),
+
     email: z.string().email({ message: "Invalid email address." }),
     password: z
       .string()
@@ -61,13 +75,29 @@ const formSchema = z
   })
   .superRefine((data, ctx) => {
     if (data.role === USER_ROLES.ADVOCATE) {
-      if (!data.advocate?.advocateEnrollmentNumber) {
+      const enrollmentNumber = data.advocate?.advocateEnrollmentNumber;
+      const uniqueNumber = data.advocate?.AdvocateUniqueNumber;
+      const specialization = data.advocate?.Specialization;
+
+      // Required field validations
+      if (!enrollmentNumber) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Advocate enrolment number is required.",
           path: ["advocate", "advocateEnrollmentNumber"],
         });
+      } else {
+        // Format validation
+        const formatRegex = /^[A-Z]\/\d{1,5}\/\d{4}$/;
+        if (!formatRegex.test(enrollmentNumber)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Enrollment number must be in format 'A/123/2025'.",
+            path: ["advocate", "advocateEnrollmentNumber"],
+          });
+        }
       }
+
       if (!data.advocate?.AdvocateUniqueNumber) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -87,24 +117,25 @@ const formSchema = z
 
 export function SignupForm() {
   const { signup, loading } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-const form = useForm<z.infer<typeof formSchema>>({
-  resolver: zodResolver(formSchema),
-  defaultValues: {
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    role: USER_ROLES.ADVOCATE,
-    advocate: {
-      advocateEnrollmentNumber: "",
-      AdvocateUniqueNumber: "",
-      Specialization: "",
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      role: USER_ROLES.ADVOCATE,
+      advocate: {
+        advocateEnrollmentNumber: "",
+        AdvocateUniqueNumber: "",
+        Specialization: "",
+      },
     },
-  },
-});
-
+  });
 
   const roleWatcher = form.watch("role");
 
@@ -178,6 +209,68 @@ const form = useForm<z.infer<typeof formSchema>>({
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground focus:outline-none"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Confirm Password</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground focus:outline-none"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
                     <Input type="password" placeholder="••••••••" {...field} />
                   </FormControl>
                   <FormMessage />
@@ -196,7 +289,7 @@ const form = useForm<z.infer<typeof formSchema>>({
                   <FormMessage />
                 </FormItem>
               )}
-            />
+            /> */}
             {/* <FormField
               control={form.control}
               name="role"
@@ -227,7 +320,7 @@ const form = useForm<z.infer<typeof formSchema>>({
                     <FormItem>
                       <FormLabel>Advocate Enrollment Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., MAH/1234/2023" {...field} />
+                        <Input placeholder="e.g., A/123/2025" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

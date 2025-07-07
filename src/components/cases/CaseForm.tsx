@@ -43,18 +43,30 @@ import type { Case, CaseDocument } from "@/lib/model";
 import ApiService from "@/api/apiService";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { formatInTimeZone } from "date-fns-tz";
 
 const formSchema = z.object({
   id: z.string().optional(),
-  caseTitle: z.string().min(5),
-  caseDetail: z.string().min(10),
-  caseNumber: z.string().min(1),
-  hearingDate: z.date(),
-  filingDate: z.date(),
-  caseStatus: z.enum(ALL_CASE_STATUSES),
+  caseTitle: z
+    .string()
+    .min(5, { message: "Case title must be at least 5 characters." }),
+    
+  caseDetail: z
+    .string()
+    .min(10, { message: "Case description must be at least 10 characters." }),
+  caseNumber: z.string().min(1, { message: "Case number is required." }),
+  hearingDate: z.date({
+    required_error: "Hearing date is required.",
+  }),
+  filingDate: z.date({
+    required_error: "Filing date is required.",
+  }),
+  caseStatus: z.enum(ALL_CASE_STATUSES, {
+    errorMap: () => ({ message: "Please select a valid case status." }),
+  }),
   advocateId: z.string().optional(),
-  clientId: z.string().min(1),
-  courtLocation: z.string().min(1),
+  clientId: z.string().min(1, { message: "Client is required." }),
+  courtLocation: z.string().min(1, { message: "Court location is required." }),
   caseParentId: z.string().optional(),
   caseDocuments: z.array(z.any()).optional().default([]),
   hearingHistory: z.array(z.any()).optional().default([]),
@@ -75,6 +87,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [clients, setClients] = useState<UserSelectItem[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<CaseDocument[]>(
@@ -154,7 +167,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
             .filter((c: any) => c.advocateId === user.uid)
             .map((c: any) => ({
               id: c.id ?? "",
-              title: `${c.CaseNumber} - ${c.CaseTitle}`,
+              title: `${c.caseNumber} - ${c.caseTitle}`,
             }));
 
           setParentCases(advocateCases);
@@ -251,13 +264,35 @@ export function CaseForm({ initialData }: CaseFormProps) {
       newUploadedDocs = await uploadFiles(selectedFiles); // will update Case + CaseDocument tables
     }
 
+    const selectedHearingDate = values.hearingDate
+      ? new Date(
+          values.hearingDate.getFullYear(),
+          values.hearingDate.getMonth(),
+          values.hearingDate.getDate(),
+          12,
+          0,
+          0 // Set to 12:00 PM to avoid timezone shift
+        )
+      : initialData?.hearingDate;
+
+    const selectedFilingDate = values.filingDate
+      ? new Date(
+          values.filingDate.getFullYear(),
+          values.filingDate.getMonth(),
+          values.filingDate.getDate(),
+          12,
+          0,
+          0 // Set to 12:00 PM to avoid timezone shift
+        )
+      : initialData?.hearingDate;
+
     const payload = {
       ...(initialData?.id ? { id: initialData.id } : { id: "" }),
       caseTitle: values.caseTitle,
       caseDetail: values.caseDetail,
       caseNumber: values.caseNumber,
-      hearingDate: values.hearingDate.toISOString(),
-      filingDate: values.filingDate.toISOString(),
+      hearingDate: selectedHearingDate,
+      filingDate: selectedFilingDate,
       courtLocation: values.courtLocation,
       caseParentId: values.caseParentId || "",
       caseStatus: values.caseStatus,
@@ -286,6 +321,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
 
     try {
       if (initialData) {
+        setIsEditMode(true);
         await ApiService.updateCase(initialData.id, payload);
         toast({
           title: "Case Updated",
@@ -322,7 +358,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
           name="caseTitle"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Case Title</FormLabel>
+              <FormLabel>Case Title*</FormLabel>
               <FormControl>
                 <Input
                   placeholder="e.g. Contract Dispute"
@@ -340,7 +376,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
           name="caseDetail"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Case Description</FormLabel>
+              <FormLabel>Case Description*</FormLabel>
               <FormControl>
                 <Textarea
                   rows={4}
@@ -359,7 +395,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
             name="caseNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Case Number</FormLabel>
+                <FormLabel>Case Number*</FormLabel>
                 <FormControl>
                   <Input
                     placeholder="e.g. C1234"
@@ -377,7 +413,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
             name="courtLocation"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Court Location</FormLabel>
+                <FormLabel>Court Location*</FormLabel>
                 <FormControl>
                   <Input
                     placeholder="e.g. Mumbai District Court"
@@ -407,10 +443,14 @@ export function CaseForm({ initialData }: CaseFormProps) {
                           "w-full pl-3 text-left font-normal",
                           !field.value && "text-muted-foreground"
                         )}
-                        disabled={isLoading}
+                        disabled={isLoading || isEditMode}
                       >
                         {field.value
-                          ? format(field.value, "PPP")
+                          ? formatInTimeZone(
+                              field.value,
+                              "Asia/Kolkata",
+                              "dd MMM yyyy"
+                            ) // ✅ IST format
                           : "Pick a date"}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
@@ -445,10 +485,14 @@ export function CaseForm({ initialData }: CaseFormProps) {
                           "w-full pl-3 text-left font-normal",
                           !field.value && "text-muted-foreground"
                         )}
-                        disabled={isLoading}
+                        disabled={isLoading || isEditMode}
                       >
                         {field.value
-                          ? format(field.value, "PPP")
+                          ? formatInTimeZone(
+                              field.value,
+                              "Asia/Kolkata",
+                              "dd MMM yyyy"
+                            ) // ✅ IST format
                           : "Pick a date"}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
@@ -542,7 +586,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
             name="clientId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Client</FormLabel>
+                <FormLabel>Client*</FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
@@ -589,10 +633,10 @@ export function CaseForm({ initialData }: CaseFormProps) {
                     />
 
                     {/* Selected but not yet uploaded */}
-                    {selectedFiles && selectedFiles.length > 0 && (
+                    {/* {selectedFiles && selectedFiles.length > 0 && (
                       <div className="text-sm text-yellow-700">
                         <p className="font-medium">
-                          New files selected (not uploaded yet):
+                          New files selected :
                         </p>
                         <ul className="list-disc ml-5">
                           {[...selectedFiles].map((file, index) => (
@@ -602,12 +646,12 @@ export function CaseForm({ initialData }: CaseFormProps) {
                           ))}
                         </ul>
                       </div>
-                    )}
+                    )} */}
 
                     {/* Already uploaded */}
                     {uploadedFiles && uploadedFiles.length > 0 && (
                       <div className="text-sm text-green-700">
-                        <p className="font-medium">Uploaded Documents:</p>
+                        <p className="font-medium">Documents Uploaded</p>
                         <ul className="list-disc ml-5">
                           {uploadedFiles.map((file, index) => (
                             <li key={index}>

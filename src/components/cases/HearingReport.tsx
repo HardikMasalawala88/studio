@@ -191,7 +191,7 @@ export function HearingReport() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center no-print">
-        <h2 className="text-xl font-semibold">
+        <h2 className="text-xl font-semibold mr-2">
           Today's Hearings - {format(today, "PPP")}
         </h2>
         <Button onClick={handlePrint} disabled={hearings.length === 0}>
@@ -247,7 +247,7 @@ export function HearingReport() {
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
-                  <CardTitle>{hearing.caseTitle}</CardTitle>
+                  <CardTitle className="mb-2">{hearing.caseTitle}</CardTitle>
                   <CardDescription>
                     Hearing Time: {format(new Date(hearing.hearingDate), "p")}
                   </CardDescription>
