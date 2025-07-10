@@ -30,7 +30,10 @@ class Case(BaseEntity):
     courtLocation: str
     caseParentId: Optional[str] = None
     filingDate: datetime = Field(default_factory=datetime.utcnow)
-    caseStatus: str = "Open"  
+    caseStatus: str = "Open"
+    opponant: str
+    oppositeAdvocate: str
+    caseRemark: str  
     caseDocuments: Optional[List[CaseDocument]] = []
     hearingHistory: Optional[List[HearingEntry]] = []
     notes: Optional[List[Note]] = []
