@@ -194,7 +194,7 @@ export function ClientList() {
                   <TableCell>{client.user.email}</TableCell>
                   <TableCell>
                     <Badge
-                      variant={client.user.isActive ? "default" : "outline"}
+                      variant={client.user.isActive ? "default" : "destructive"}
                     >
                       {client.user.isActive ? "Active" : "Inactive"}
                     </Badge>

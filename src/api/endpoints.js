@@ -22,11 +22,11 @@ const API = {
   ADD_NOTE: (id) =>  `/advocate/cases/${id}/add-note`,
 
   // SuperAdmin
-  ADD_ADVOCATE: '/superadmin/add-advocate',
   GET_ADVOCATE: (id) => `/superadmin/advocates/${id}`,
-  UPDATE_ADVOCATE: (id) => `/superadmin/advocates/${id}`,
-  DELETE_ADVOCATE: (id) => `/superadmin/advocates/${id}`,
   LIST_ADVOCATES: '/superadmin/advocates'
+  // ADD_ADVOCATE: '/superadmin/add-advocate',
+  // UPDATE_ADVOCATE: (id) => `/superadmin/advocates/${id}`,
+  // DELETE_ADVOCATE: (id) => `/superadmin/advocates/${id}`,
 };
 
 export default API;

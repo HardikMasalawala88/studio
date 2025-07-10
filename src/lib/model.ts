@@ -20,7 +20,7 @@ export type UserFormValues = {
     createdAt?: Date;
     modifiedAt?: Date;
   };
-   createdBy?: string;
+  createdBy?: string;
   modifiedBy?: string;
   createdAt?: string | Date;
   modifiedAt?: string | Date;
@@ -61,6 +61,9 @@ export interface Case {
   caseParentId?: string;
   filingDate: Date;
   caseStatus: string;
+  opponant: string;
+  oppositeAdvocate: string;
+  caseRemark: string;
   caseDocuments?: CaseDocument[];
   hearingHistory?: HearingEntry[];
   notes?: Note[];

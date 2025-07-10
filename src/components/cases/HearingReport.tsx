@@ -31,6 +31,7 @@ export function HearingReport() {
   const [selectedCaseForUpdate, setSelectedCaseForUpdate] =
     useState<Case | null>(null);
   const [clientNames, setClientNames] = useState<Record<string, string>>({});
+  const [oppAdvocateNames, setOppAdvocateNames] = useState<Record<string, string>>({});
 
   const fetchHearings = async () => {
     if (user && user.role === USER_ROLES.ADVOCATE) {
@@ -60,18 +61,43 @@ export function HearingReport() {
             try {
               const clientRes = await ApiService.getClient(clientId);
               const clientData = clientRes.data;
-              const fullName = `${clientData?.user?.firstName || ""} ${
-                clientData?.user?.lastName || ""
-              }`.trim();
+              const fullName = `${clientData?.user?.firstName || ""} ${clientData?.user?.lastName || ""
+                }`.trim();
               clientNameMap[clientId] = fullName || "Unknown Client";
             } catch (err) {
               clientNameMap[clientId] = "Unknown Client";
-              console.error(`Failed to fetch client for ID ${clientId}:`, err);
             }
           })
         );
 
         setClientNames(clientNameMap);
+
+        const uniqueOppAdvocateIds = Array.from(
+          new Set(
+            todaysCases
+              .map((c) => c.oppositeAdvocate)
+              .filter((id) => !!id && typeof id === "string")
+          )
+        );
+
+        const advocateNameMap: Record<string, string> = {};
+
+        await Promise.all(
+          uniqueOppAdvocateIds.map(async (advId) => {
+            try {
+              const advRes = await ApiService.getAdvocate(advId); // 👈 you must have this API
+              const advData = advRes.data;
+              const fullName = `${advData?.firstName || ""} ${advData?.lastName || ""}`.trim();
+              advocateNameMap[advId] = fullName || "Unknown Advocate";
+            } catch (err) {
+              advocateNameMap[advId] = "Unknown Advocate";
+              console.error(`Failed to fetch advocate for ID ${advId}:`, err);
+            }
+          })
+        );
+
+        setOppAdvocateNames(advocateNameMap);
+
       } catch (error) {
         toast({
           title: "Error loading hearings",
@@ -140,22 +166,25 @@ export function HearingReport() {
     frameDoc.write(`
       <html>
         <head>
-          <title>Daily Hearing Report - ${format(today, "PPP")}</title>
           <style>
-            body { font-family: Arial; padding: 20px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            body { font-family: Arial; padding: 10px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px;  table-layout: fixed;}
+            th, td { border: 1px solid #ddd; padding: 4px 6px; text-align: left; vertical-align: top; }
             th { background-color: #f2f2f2; }
           </style>
         </head>
         <body>
-          <h1>${APP_NAME}</h1>
-          <h2>Daily Hearing Report - ${format(today, "PPP")}</h2>
+          <h3 style="text-align:center; margin-top: 0;">
+          ${user?.firstName || ""} ${user?.lastName || ""} | Todays Board Report As On Date - ${format(today, "PPP")}
+          </h3>
+          
           ${printContents}
         </body>
       </html>
     `);
     frameDoc.close();
+          // <title>Daily Hearing Report - ${format(today, "PPP")}</title>
+          // <h4 style="text-align:center; margin-top: 0;"></h4>
 
     setTimeout(() => {
       iframe.contentWindow?.focus();
@@ -214,20 +243,20 @@ export function HearingReport() {
           <table className="hidden print:table w-full printable-report-table">
             <thead>
               <tr>
-                <th>Time</th>
-                <th>Case</th>
-                <th>Client</th>
-                <th>Status</th>
-                <th>Notes</th>
+                <th>Prev. Date <br/> Remark</th>
+                <th>Case No. <br/> Court Name</th>
+                <th>Applicant <br/> Opponent</th>
+                <th>Stage status <br/> Opp. Advocate</th>
+                <th>Next Hearing / Notes</th>
               </tr>
             </thead>
             <tbody>
               {hearings.map((hearing) => (
                 <tr key={hearing.id}>
-                  <td>{format(new Date(hearing.hearingDate), "p")}</td>
-                  <td>{hearing.caseTitle}</td>
-                  <td>{clientNames[hearing.clientId] || "Unknown"}</td>
-                  <td>{hearing.caseStatus}</td>
+                  <td>{format(new Date(hearing.hearingDate), "dd-MM-yyyy")}<br /><small>{hearing.caseRemark}</small></td>
+                  <td>{hearing.caseNumber}<br /><small>{hearing.courtLocation}</small></td>
+                  <td>{clientNames[hearing.clientId] || "Unknown"}<br /><small>{hearing.opponant}</small></td>
+                  <td>{hearing.caseStatus}<br /><small>{oppAdvocateNames[hearing.oppositeAdvocate] || "—"}</small></td>
                   <td></td>
                   {/* <td>
                     {hearing.hearingHistory

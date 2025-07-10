@@ -35,12 +35,12 @@ const ApiService = {
   addNote: (id, data) => axiosInstance.put(API.ADD_NOTE(id), data).then((res) => res.data),
   // uploadDocument: (data) => axiosInstance.post(API.UPLOAD_DOCUMENT, data),
 
-  addAdvocate: (data, specialization) =>
-    axiosInstance.post(`${API.ADD_ADVOCATE}?specialization=${specialization}`, data),
   getAdvocate: (id) => axiosInstance.get(API.GET_ADVOCATE(id)),
-  updateAdvocate: (id, data) => axiosInstance.put(API.UPDATE_ADVOCATE(id), data),
-  deleteAdvocate: (id) => axiosInstance.delete(API.DELETE_ADVOCATE(id)),
   listAdvocates: () => axiosInstance.get(API.LIST_ADVOCATES),
+  // addAdvocate: (data, specialization) =>
+  //   axiosInstance.post(`${API.ADD_ADVOCATE}?specialization=${specialization}`, data),
+  // updateAdvocate: (id, data) => axiosInstance.put(API.UPDATE_ADVOCATE(id), data),
+  // deleteAdvocate: (id) => axiosInstance.delete(API.DELETE_ADVOCATE(id)),
 };
 
 export default ApiService;

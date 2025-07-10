@@ -29,7 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { formatInTimeZone } from "date-fns-tz";
+import { format, formatInTimeZone } from "date-fns-tz";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -174,7 +174,7 @@ export function CaseList() {
       case CASE_STATUSES.ON_HOLD:
         return "secondary";
       case CASE_STATUSES.CLOSED:
-        return "outline";
+        return "destructive";
       default:
         return "default";
     }
@@ -286,7 +286,7 @@ export function CaseList() {
                   {/* <TableCell>{c.AdvocateId}</TableCell> */}
                   <TableCell>{c.courtLocation}</TableCell>
                   <TableCell>
-                    {formatInTimeZone(c.hearingDate, "Asia/Kolkata", "dd MMM yyyy, hh:mm a")}
+                    {format(new Date(c.hearingDate), "dd MMM yyyy, hh:mm a")}
                   </TableCell>
                   {/* <TableCell>{c.HearingDate.toISOString()}</TableCell> */}
                   <TableCell>

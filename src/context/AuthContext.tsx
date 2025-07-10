@@ -475,8 +475,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           advocateEnrollmentNumber: values.advocate?.advocateEnrollmentNumber || "",
           createdBy: values.email,
           modifiedBy: values.email,
-          createdAt: new Date().toISOString(),
-          modifiedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          modifiedAt: new Date(),
           id: values.advocate?.id || "",
         } : undefined,
       };

@@ -58,7 +58,7 @@ export function CaseNotes({
       // let createdNote;
       const payload: Note = {
         description: newNote,
-        createdAt: new Date().toISOString(),
+        createdAt: new Date(),
       };
       await ApiService.addNote(caseId, payload);
       const createdNote: Note = {
@@ -70,6 +70,7 @@ export function CaseNotes({
       if (createdNote) {
         onNoteAdded(createdNote); // still useful if parent wants to know
         setNotes((prev) => [...prev, createdNote]); // ✅ update local display
+        setNewNote("");
         toast({
           title: "Note Added",
           description: "Your note has been successfully added.",

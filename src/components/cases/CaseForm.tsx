@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -39,18 +39,20 @@ import {
   USER_ROLES,
   type CaseStatus,
 } from "@/lib/constants";
-import type { Case, CaseDocument } from "@/lib/model";
+import type { Case, CaseDocument, ClientData } from "@/lib/model";
 import ApiService from "@/api/apiService";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { formatInTimeZone } from "date-fns-tz";
+import { ClientForm } from "@/components/clients/ClientForm";
+import CaseStatusAutocomplete from "./CaseStatusAutocomplete";
 
 const formSchema = z.object({
   id: z.string().optional(),
   caseTitle: z
     .string()
-    .min(5, { message: "Case title must be at least 5 characters." }),
-    
+    .max(20, { message: "Case title must be maximum 20 characters." }),
+
   caseDetail: z
     .string()
     .min(10, { message: "Case description must be at least 10 characters." }),
@@ -61,13 +63,14 @@ const formSchema = z.object({
   filingDate: z.date({
     required_error: "Filing date is required.",
   }),
-  caseStatus: z.enum(ALL_CASE_STATUSES, {
-    errorMap: () => ({ message: "Please select a valid case status." }),
-  }),
+  caseStatus: z.string().min(1, { message: "Please select or enter case status." }),
   advocateId: z.string().optional(),
   clientId: z.string().min(1, { message: "Client is required." }),
   courtLocation: z.string().min(1, { message: "Court location is required." }),
   caseParentId: z.string().optional(),
+  opponant: z.string().min(1, { message: "Opponant name is required." }),
+  oppositeAdvocate: z.string().min(1, { message: "Opposite Advoacte is required." }),
+  caseRemark: z.string().optional(),
   caseDocuments: z.array(z.any()).optional().default([]),
   hearingHistory: z.array(z.any()).optional().default([]),
   notes: z.array(z.any()).optional().default([]),
@@ -96,6 +99,12 @@ export function CaseForm({ initialData }: CaseFormProps) {
   const [parentCases, setParentCases] = useState<
     { id: string; title: string }[]
   >([]);
+  const [advocates, setAdvocates] = useState<UserSelectItem[]>([]);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<ClientData | undefined>(undefined);
+  const [statuses, setStatuses] = useState<string[]>([...ALL_CASE_STATUSES]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
 
   // ✅ Infer type from schema
   type FormSchema = z.infer<typeof formSchema>;
@@ -104,35 +113,41 @@ export function CaseForm({ initialData }: CaseFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: initialData
       ? {
-          caseTitle: initialData.caseTitle,
-          caseDetail: initialData.caseDetail,
-          caseNumber: initialData.caseNumber,
-          hearingDate: initialData.hearingDate,
-          filingDate: initialData.filingDate,
-          courtLocation: initialData.courtLocation,
-          caseParentId: initialData.caseParentId ?? "",
-          caseStatus: initialData.caseStatus as CaseStatus,
-          advocateId: initialData.advocateId,
-          clientId: initialData.clientId,
-          caseDocuments: initialData.caseDocuments,
-          hearingHistory: initialData.hearingHistory,
-          notes: initialData.notes,
-        }
+        caseTitle: initialData.caseTitle,
+        caseDetail: initialData.caseDetail,
+        caseNumber: initialData.caseNumber,
+        hearingDate: initialData.hearingDate,
+        filingDate: initialData.filingDate,
+        courtLocation: initialData.courtLocation,
+        caseParentId: initialData.caseParentId ?? "",
+        caseStatus: initialData.caseStatus as CaseStatus,
+        advocateId: initialData.advocateId,
+        clientId: initialData.clientId,
+        opponant: initialData.opponant,
+        oppositeAdvocate: initialData.oppositeAdvocate,
+        caseRemark: initialData.caseRemark,
+        caseDocuments: initialData.caseDocuments,
+        hearingHistory: initialData.hearingHistory,
+        notes: initialData.notes,
+      }
       : {
-          caseTitle: "",
-          caseDetail: "",
-          caseNumber: "",
-          hearingDate: new Date(),
-          filingDate: new Date(),
-          courtLocation: "",
-          caseParentId: "",
-          caseStatus: ALL_CASE_STATUSES[0],
-          advocateId: user?.role === USER_ROLES.ADVOCATE ? user.uid : "",
-          clientId: user?.role === USER_ROLES.CLIENT ? user.uid : "",
-          caseDocuments: [],
-          hearingHistory: [],
-          notes: [],
-        },
+        caseTitle: "",
+        caseDetail: "",
+        caseNumber: "",
+        hearingDate: new Date(),
+        filingDate: new Date(),
+        courtLocation: "",
+        caseParentId: "",
+        caseStatus: ALL_CASE_STATUSES[0],
+        advocateId: user?.role === USER_ROLES.ADVOCATE ? user.uid : "",
+        clientId: user?.role === USER_ROLES.CLIENT ? user.uid : "",
+        opponant: "",
+        oppositeAdvocate: "",
+        caseRemark: "",
+        caseDocuments: [],
+        hearingHistory: [],
+        notes: [],
+      },
   });
 
   useEffect(() => {
@@ -143,11 +158,11 @@ export function CaseForm({ initialData }: CaseFormProps) {
         const clientList = Array.isArray(clientRes.data)
           ? clientRes.data
           : Array.isArray(clientRes)
-          ? clientRes
-          : [];
+            ? clientRes
+            : [];
 
         const filteredClients = clientList.filter(
-          (c) => c.user.createdBy === user?.email
+          (c) => c.user.createdBy === user?.email && c.user.isActive === true
         );
 
         const mappedClients = filteredClients.map((c: any) => ({
@@ -172,6 +187,23 @@ export function CaseForm({ initialData }: CaseFormProps) {
 
           setParentCases(advocateCases);
         }
+
+        const allUsersRes = await ApiService.listAdvocates(); // assuming this gives all users
+        const advocateList = Array.isArray(allUsersRes.data) ? allUsersRes.data : [];
+
+        const otherAdvocates = advocateList
+          .filter(
+            (a: any) =>
+              a.role === USER_ROLES.ADVOCATE &&
+              a.uid !== user?.uid &&
+              a.isActive
+          )
+          .map((a: any) => ({
+            id: a.uid,
+            name: a.email ?? "Unnamed Advocate",
+          }));
+
+        setAdvocates(otherAdvocates);
 
         if (!initialData) {
           if (user?.role === USER_ROLES.CLIENT) {
@@ -204,11 +236,57 @@ export function CaseForm({ initialData }: CaseFormProps) {
         (initialData?.caseStatus as CaseStatus) ?? ALL_CASE_STATUSES[0],
       advocateId: initialData?.advocateId ?? "",
       clientId: initialData?.clientId ?? "",
+      opponant: initialData?.opponant ?? "",
+      oppositeAdvocate: initialData?.oppositeAdvocate ?? "",
+      caseRemark: initialData?.caseRemark ?? "",
       caseDocuments: initialData?.caseDocuments ?? [],
       hearingHistory: initialData?.hearingHistory ?? [],
       notes: initialData?.notes ?? [],
     });
   }, [form, user, initialData, toast]);
+
+
+  const handleOpenForm = (client?: ClientData) => {
+    setEditingClient(client);
+    setIsFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setEditingClient(undefined);
+    setIsFormOpen(false);
+  };
+
+  const handleClientSaved = async (savedClient: ClientData) => {
+    // Reload clients after saving
+    try {
+      const clientRes = await ApiService.listClients();
+      const clientList = Array.isArray(clientRes.data)
+        ? clientRes.data
+        : Array.isArray(clientRes)
+          ? clientRes
+          : [];
+
+      const filteredClients = clientList.filter(
+        (c) => c.user.createdBy === user?.email && c.user.isActive === true
+      );
+
+      const mappedClients = filteredClients.map((c: any) => ({
+        id: c.id ?? c.uid ?? "",
+        name: c.user.email ?? "Unnamed Client",
+      }));
+
+      setClients(mappedClients);
+
+      // Automatically select the newly created client
+      if (savedClient?.id) {
+        form.setValue("clientId", savedClient.id);
+      }
+    } catch (err) {
+      console.error("Failed to reload clients after saving", err);
+    }
+
+    handleCloseForm();
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -241,7 +319,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
           url: response?.url ?? "",
           fileName: response?.fileName ?? file.name,
           type: response?.type ?? file.type,
-          createdAt: response?.createdAt ?? new Date().toISOString(),
+          createdAt: response?.createdAt ?? new Date(),
         });
       } catch (error: any) {
         console.error(`Error uploading file ${file.name}:`, error);
@@ -256,6 +334,14 @@ export function CaseForm({ initialData }: CaseFormProps) {
     return uploaded;
   }
 
+  const handleRemoveFile = (indexToRemove: number) => {
+    if (!selectedFiles) return;
+
+    const updatedFiles = [...selectedFiles].filter((_, index) => index !== indexToRemove);
+
+    setSelectedFiles(updatedFiles.length > 0 ? (updatedFiles as any) : null);
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     let newUploadedDocs: CaseDocument[] = [];
@@ -265,26 +351,12 @@ export function CaseForm({ initialData }: CaseFormProps) {
     }
 
     const selectedHearingDate = values.hearingDate
-      ? new Date(
-          values.hearingDate.getFullYear(),
-          values.hearingDate.getMonth(),
-          values.hearingDate.getDate(),
-          12,
-          0,
-          0 // Set to 12:00 PM to avoid timezone shift
-        )
+      ? new Date(values.hearingDate)  // use full date-time as is
       : initialData?.hearingDate;
 
     const selectedFilingDate = values.filingDate
-      ? new Date(
-          values.filingDate.getFullYear(),
-          values.filingDate.getMonth(),
-          values.filingDate.getDate(),
-          12,
-          0,
-          0 // Set to 12:00 PM to avoid timezone shift
-        )
-      : initialData?.hearingDate;
+      ? new Date(values.filingDate)
+      : initialData?.filingDate;
 
     const payload = {
       ...(initialData?.id ? { id: initialData.id } : { id: "" }),
@@ -298,10 +370,13 @@ export function CaseForm({ initialData }: CaseFormProps) {
       caseStatus: values.caseStatus,
       advocateId: user?.uid,
       clientId: values.clientId,
+      opponant: values.opponant,
+      oppositeAdvocate: values.oppositeAdvocate,
+      caseRemark: values.caseRemark,
       createdBy: initialData ? initialData.createdBy : user?.email,
       modifiedBy: initialData?.createdBy,
-      createdAt: initialData?.createdAt ?? new Date().toISOString(),
-      modifiedAt: initialData?.modifiedAt ?? new Date().toISOString(),
+      createdAt: initialData?.createdAt ?? new Date(),
+      modifiedAt: initialData?.modifiedAt ?? new Date(),
       ...(newUploadedDocs.length > 0 && {
         caseDocuments: [
           ...(initialData?.caseDocuments ?? []),
@@ -310,10 +385,10 @@ export function CaseForm({ initialData }: CaseFormProps) {
       }),
       hearingHistory: initialData?.hearingHistory ?? [
         {
-          hearingDate: values.hearingDate.toISOString(),
+          hearingDate: values.hearingDate,
           note: "Initial hearing scheduled",
           updatedBy: user?.email ?? "",
-          createdAt: new Date().toISOString(),
+          createdAt: new Date(),
         },
       ],
       notes: initialData?.notes ?? [],
@@ -350,7 +425,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit, (errors) => {})}
+        onSubmit={form.handleSubmit(onSubmit, (errors) => { })}
         className="space-y-8"
       >
         <FormField
@@ -447,10 +522,10 @@ export function CaseForm({ initialData }: CaseFormProps) {
                       >
                         {field.value
                           ? formatInTimeZone(
-                              field.value,
-                              "Asia/Kolkata",
-                              "dd MMM yyyy"
-                            ) // ✅ IST format
+                            field.value,
+                            "Asia/Kolkata",
+                            "dd MMM yyyy"
+                          ) // ✅ IST format
                           : "Pick a date"}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
@@ -489,10 +564,10 @@ export function CaseForm({ initialData }: CaseFormProps) {
                       >
                         {field.value
                           ? formatInTimeZone(
-                              field.value,
-                              "Asia/Kolkata",
-                              "dd MMM yyyy"
-                            ) // ✅ IST format
+                            field.value,
+                            "Asia/Kolkata",
+                            "dd MMM yyyy"
+                          ) // ✅ IST format
                           : "Pick a date"}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
@@ -520,25 +595,13 @@ export function CaseForm({ initialData }: CaseFormProps) {
             name="caseStatus"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Case Status</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
+                <FormLabel>Case Status*</FormLabel>
+                <CaseStatusAutocomplete
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={statuses}
                   disabled={isLoading}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {ALL_CASE_STATUSES.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
                 <FormMessage />
               </FormItem>
             )}
@@ -550,34 +613,48 @@ export function CaseForm({ initialData }: CaseFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Parent Case</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  disabled={parentCases.length === 0 || isLoading}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="--Select parent case(optional)--" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {parentCases.length === 0 ? (
-                      <div className="p-2 text-muted-foreground text-sm">
-                        No cases found
-                      </div>
-                    ) : (
-                      parentCases.map((pcase) => (
-                        <SelectItem key={pcase.id} value={pcase.id}>
-                          {pcase.title}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <div className="relative">
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={parentCases.length === 0 || isLoading}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="--Select parent case(optional)--" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {parentCases.length === 0 ? (
+                        <div className="p-2 text-muted-foreground text-sm">
+                          No cases found
+                        </div>
+                      ) : (
+                        parentCases.map((pcase) => (
+                          <SelectItem key={pcase.id} value={pcase.id}>
+                            {pcase.title}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+
+                  {/* X Clear Button */}
+                  {field.value && (
+                    <button
+                      type="button"
+                      onClick={() => field.onChange("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-800 hover:text-gray-800"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
                 <FormMessage />
               </FormItem>
             )}
           />
+
         </div>
 
         <div className="grid md:grid-cols-2 gap-8">
@@ -598,16 +675,34 @@ export function CaseForm({ initialData }: CaseFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {clients.length === 0 ? (
-                      <div className="p-2 text-sm text-muted-foreground">
-                        No client found
-                      </div>
+                    {clients.length > 0 ? (
+                      <>
+                        {clients.map((cli) => (
+                          <SelectItem key={cli.id} value={cli.id}>
+                            {cli.name}
+                          </SelectItem>
+                        ))}
+                        <div className="p-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenForm()}
+                            className="text-blue-600 hover:underline text-sm"
+                          >
+                            + Add Client
+                          </button>
+                        </div>
+                      </>
                     ) : (
-                      clients.map((cli) => (
-                        <SelectItem key={cli.id} value={cli.id}>
-                          {cli.name}
-                        </SelectItem>
-                      ))
+                      <div className="p-2 text-sm text-muted-foreground flex flex-col items-start gap-2">
+                        <span>No client found</span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenForm()}
+                          className="text-blue-600 hover:underline text-sm"
+                        >
+                          + Add Client
+                        </button>
+                      </div>
                     )}
                   </SelectContent>
                 </Select>
@@ -625,31 +720,54 @@ export function CaseForm({ initialData }: CaseFormProps) {
                 <FormControl>
                   <div className="space-y-2">
                     {/* File input */}
-                    <Input
-                      type="file"
-                      multiple
-                      onChange={handleFileChange}
-                      disabled={isLoading}
-                    />
+                    <div className="relative">
+                      <Input
+                        type="file"
+                        multiple
+                        onChange={handleFileChange}
+                        disabled={isLoading}
+                        ref={fileInputRef}
+                        className="pr-10" // Leave space for the ❌ button
+                      />
+                      {selectedFiles && selectedFiles.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedFiles(null);
+                            if (fileInputRef.current) {
+                              fileInputRef.current.value = "";
+                            }
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-xl text-gray-500 hover:text-red-600 font-bold"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
 
                     {/* Selected but not yet uploaded */}
-                    {/* {selectedFiles && selectedFiles.length > 0 && (
-                      <div className="text-sm text-yellow-700">
-                        <p className="font-medium">
-                          New files selected :
-                        </p>
-                        <ul className="list-disc ml-5">
+                    {selectedFiles && selectedFiles.length > 0 && (
+                      <div className="text-sm text-green-700">
+                        <p className="font-medium">Documents Uploaded</p>
+                        {/* <ul className="space-y-1">
                           {[...selectedFiles].map((file, index) => (
-                            <li key={index} className="italic">
-                              {file.name}
+                            <li key={index} className="flex items-center justify-between bg-green-50 p-2 rounded shadow-sm">
+                              <span className="italic text-green-900">{file.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveFile(index)}
+                                className="ml-3 text-red-600 hover:text-red-800 font-bold"
+                              >
+                                ✖
+                              </button>
                             </li>
                           ))}
-                        </ul>
+                        </ul> */}
                       </div>
-                    )} */}
+                    )}
 
                     {/* Already uploaded */}
-                    {uploadedFiles && uploadedFiles.length > 0 && (
+                    {/* {uploadedFiles && uploadedFiles.length > 0 && (
                       <div className="text-sm text-green-700">
                         <p className="font-medium">Documents Uploaded</p>
                         <ul className="list-disc ml-5">
@@ -667,7 +785,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
                           ))}
                         </ul>
                       </div>
-                    )}
+                    )} */}
                   </div>
                 </FormControl>
                 <FormMessage />
@@ -675,6 +793,77 @@ export function CaseForm({ initialData }: CaseFormProps) {
             )}
           />
         </div>
+
+        <div className="grid md:grid-cols-2 gap-8">
+          <FormField
+            control={form.control}
+            name="opponant"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Opponent*</FormLabel>
+                <FormControl>
+                  <Input placeholder="Opponent name" {...field} disabled={isLoading} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="oppositeAdvocate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Opposite Advocate*</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  disabled={isLoading || advocates.length === 0}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="--Select opposite advocate--" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {advocates.length === 0 ? (
+                      <div className="p-2 text-muted-foreground text-sm">
+                        No other advocates found
+                      </div>
+                    ) : (
+                      advocates.map((adv) => (
+                        <SelectItem key={adv.id} value={adv.id}>
+                          {adv.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+        </div>
+        <FormField
+          control={form.control}
+          name="caseRemark"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Case Remark</FormLabel>
+              <FormControl>
+                <Textarea
+                  rows={3}
+                  placeholder="Additional remarks"
+                  {...field}
+                  disabled={isLoading}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
 
         <div className="flex justify-end gap-2">
           <Button
@@ -691,7 +880,19 @@ export function CaseForm({ initialData }: CaseFormProps) {
             {initialData ? "Save Changes" : "Create Case"}
           </Button>
         </div>
+        {
+          isFormOpen && (
+            <ClientForm
+              isOpen={isFormOpen}
+              onClose={handleCloseForm}
+              initialData={editingClient}
+              onClientSaved={handleClientSaved}
+            />
+          )
+        }
+
       </form>
     </Form>
   );
+
 }

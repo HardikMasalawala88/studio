@@ -17,7 +17,8 @@ export const CASE_STATUSES = {
 
 export const ALL_CASE_STATUSES = ["Open", "Closed", "On Hold"] as const;
 
-export type CaseStatus = (typeof ALL_CASE_STATUSES)[number];
+export type CaseStatus = string;
+// export type CaseStatus = (typeof ALL_CASE_STATUSES)[number];
 
 // export type CaseStatus = typeof CASE_STATUSES[keyof typeof CASE_STATUSES];
 

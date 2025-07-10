@@ -71,6 +71,9 @@ export function CaseDetail() {
           caseNumber: data.caseNumber,
           caseParentId: data.caseParentId,
           courtLocation: data.courtLocation,
+          opponant: data.opponant,
+          oppositeAdvocate: data.oppositeAdvocate,
+          caseRemark: data.caseRemark,
           hearingHistory: data.hearingHistory || [],
           notes: data.notes || [],
         };
@@ -203,7 +206,7 @@ export function CaseDetail() {
         <InfoCard
           icon={<CalendarDays />}
           title="Next Hearing Date"
-          value={format(new Date(caseData.hearingDate), "PPPp")}
+          value={format(new Date(caseData.hearingDate), "PPp")}
         />
         <InfoCard icon={<User />} title="Client" value={clientEmail} />
         <InfoCard icon={<Users />} title="Advocate" value={advocateEmail} />
