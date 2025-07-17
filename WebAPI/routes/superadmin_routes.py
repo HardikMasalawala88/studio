@@ -18,70 +18,69 @@ router = APIRouter()
 #         return {"status": "Success", "message": "Admin Added Successfully...!"}
 #     raise HTTPException(status_code=500, detail="Insert Admin data failed..!")
 
-@router.post("/add-Advocate")
-async def add_Advocate(user: User, specialization: str):
-    user_dict = user.dict()
-    user_dict["_id"] = ObjectId()
-    user_dict["Id"] = str(user_dict["_id"])
+# @router.post("/add-Advocate")
+# async def add_Advocate(user: User, specialization: str):
+#     user_dict = user.dict()
+#     user_dict["_id"] = ObjectId()
+#     user_dict["Id"] = str(user_dict["_id"])
 
-    await db.users.insert_one(user_dict)
+#     await db.users.insert_one(user_dict)
 
-    Advocate = Advocate(
-        Id=user_dict["Id"],
-        AdvocateUniqueNumber=f"LAW-{user_dict['MobileNo'][-4:]}",
-        Specialization=specialization,
-        User=user
-    )
-    await db.advocates.insert_one(Advocate.dict(by_alias=True))
+#     Advocate = Advocate(
+#         Id=user_dict["Id"],
+#         AdvocateUniqueNumber=f"LAW-{user_dict['MobileNo'][-4:]}",
+#         Specialization=specialization,
+#         User=user
+#     )
+#     await db.advocates.insert_one(Advocate.dict(by_alias=True))
 
-    return {"message": "Advocate added", "Advocate_id": Advocate.Id}
-
-
-@router.put("/Advocates/{Advocate_id}")
-async def update_Advocate(Advocate_id: str, Advocate: Advocate, request: Request):
-    logged_in_user = request.headers.get("X-UserId", "system")
-    try:
-        user_oid = ObjectId(Advocate.UserId)
-        Advocate_oid = ObjectId(Advocate_id)
-    except InvalidURL:
-        raise HTTPException(status_code=400, detail="Invalid ObjectId format")
-
-    if not Advocate.UserId or not Advocate.User:
-        raise HTTPException(status_code=400, detail="Missing User or UserId")
-
-    # Set modified by
-    Advocate.ModifiedBy = logged_in_user
-    Advocate.User.ModifiedBy = logged_in_user
-
-    # Update user
-    await db.users.replace_one({"_id": user_oid}, Advocate.User.dict(by_alias=True))
-
-    # Update Advocate
-    update_result = await db.advocates.replace_one(
-        {"_id": Advocate_oid},
-        Advocate.dict(exclude={"User"}, by_alias=True)
-    )
-
-    if update_result.modified_count or update_result.matched_count:
-        return {"status": "Success", "message": "Advocate Updated Successfully...!"}
-
-    raise HTTPException(status_code=500, detail="Could not update Advocate data.")
+#     return {"message": "Advocate added", "Advocate_id": Advocate.Id}
 
 
-@router.get("/Advocates", response_model=List[Advocate])
+# @router.put("/Advocates/{Advocate_id}")
+# async def update_Advocate(Advocate_id: str, Advocate: Advocate, request: Request):
+#     logged_in_user = request.headers.get("X-UserId", "system")
+#     try:
+#         user_oid = ObjectId(Advocate.UserId)
+#         Advocate_oid = ObjectId(Advocate_id)
+#     except InvalidURL:
+#         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
+
+#     if not Advocate.UserId or not Advocate.User:
+#         raise HTTPException(status_code=400, detail="Missing User or UserId")
+
+#     # Set modified by
+#     Advocate.ModifiedBy = logged_in_user
+#     Advocate.User.ModifiedBy = logged_in_user
+
+#     # Update user
+#     await db.users.replace_one({"_id": user_oid}, Advocate.User.dict(by_alias=True))
+
+#     # Update Advocate
+#     update_result = await db.advocates.replace_one(
+#         {"_id": Advocate_oid},
+#         Advocate.dict(exclude={"User"}, by_alias=True)
+#     )
+
+#     if update_result.modified_count or update_result.matched_count:
+#         return {"status": "Success", "message": "Advocate Updated Successfully...!"}
+
+#     raise HTTPException(status_code=500, detail="Could not update Advocate data.")
+
+
+@router.get("/Advocates", response_model=List[RegisterFM])
 async def get_all_advocates():
-    advocates = []
+    results = []
     try:
-        async for doc in db.advocates.find():
-            doc["id"] = str(doc["_id"])
-            doc.pop("_id")
+        # Fetch users with role 'Advocate'
+        async for user in db.users.find({"role": {"$in": ["Advocate", "Admin"]}}):
+            user["uid"] = str(user["_id"])
+            user["confirmPassword"] = user["password"]
+            user["advocate"] = None  # Or {} if needed
 
-            # Skip if required fields are missing
-            if "advocateEnrollmentNumber" not in doc:
-                continue
+            results.append(RegisterFM(**user))
 
-            advocates.append(Advocate(**doc))
-        return advocates
+        return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 

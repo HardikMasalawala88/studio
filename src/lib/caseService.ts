@@ -96,7 +96,7 @@ let MOCK_CASES: Case[] = [
 
 export async function getCases(userId: string, userRole: UserRole): Promise<Case[]> {
   await new Promise(resolve => setTimeout(resolve, 500)); 
-  if (userRole === USER_ROLES.SUPER_ADMIN) {
+  if (userRole === USER_ROLES.ADMIN) {
     return MOCK_CASES;
   }
   if (userRole === USER_ROLES.ADVOCATE) {

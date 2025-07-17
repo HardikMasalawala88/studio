@@ -29,7 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { format, formatInTimeZone } from "date-fns-tz";
+import { format } from "date-fns" ;
 import {
   AlertDialog,
   AlertDialogAction,
@@ -286,9 +286,8 @@ export function CaseList() {
                   {/* <TableCell>{c.AdvocateId}</TableCell> */}
                   <TableCell>{c.courtLocation}</TableCell>
                   <TableCell>
-                    {format(new Date(c.hearingDate), "dd MMM yyyy, hh:mm a")}
+                    {format(new Date(c.hearingDate), "PPP")} 
                   </TableCell>
-                  {/* <TableCell>{c.HearingDate.toISOString()}</TableCell> */}
                   <TableCell>
                     <Badge variant={getStatusBadgeVariant(c.caseStatus)}>
                       {c.caseStatus}

@@ -36,21 +36,18 @@ export function SuperAdminDashboard() {
     const fetchStats = async () => {
       setLoading(true);
       try {
-        const [userRes, caseRes] = await Promise.all([
-          ApiService.listAdvocates(),
-          ApiService.listClients(),
-          ApiService.listCases(),
+        const [usersRes, caseRes] = await Promise.all([
+          ApiService.listUsers(),      // or ApiService.listUsers() if defined
+          ApiService.listCases(),      // or ApiService.listCases()
         ]);
 
-        const users: UserFormValues[] = userRes.data || [];
-        // const advocates: UserFormValues[] = userRes.data || [];
-        // const clients: UserFormValues[] = caseRes.data || [];
+        const users: UserFormValues[] = usersRes.data || [];
         const cases: Case[] = caseRes.data || [];
 
         const totalUsers = users.length;
         const totalAdvocates = users.filter((u) => u.role === "Advocate").length;
         const totalClients = users.filter((u) => u.role === "Client").length;
-        const activeCasesPlatformWide = cases.filter((c) => c.CaseStatus !== "Closed").length;
+        const activeCasesPlatformWide = cases.filter((c) => c.caseStatus !== "Closed").length;
 
         setStats({
           totalUsers,

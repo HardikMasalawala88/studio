@@ -5,7 +5,7 @@ import { USER_ROLES } from '@/lib/constants';
 
 export default function AdminUsersPage() {
   return (
-    <AppLayout allowedRoles={[USER_ROLES.SUPER_ADMIN]}>
+    <AppLayout allowedRoles={[USER_ROLES.ADMIN]}>
       <PageHeader title="User Management" description="Administer all users in the system." />
       <UserList />
     </AppLayout>

@@ -5,7 +5,7 @@ import { USER_ROLES } from '@/lib/constants';
 
 export default function CasesPage() {
   return (
-    <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.SUPER_ADMIN]}>
+    <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.ADMIN]}>
       <PageHeader title="Case Management" description="View, search, and manage all your cases." />
       <CaseList />
     </AppLayout>

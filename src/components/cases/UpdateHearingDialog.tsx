@@ -41,7 +41,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { ALL_CASE_STATUSES, CASE_STATUSES } from "@/lib/constants";
-import type { AuthUser } from "@/lib/types";
+import type { AuthUser } from "@/lib/model";
 import type { Case, HearingEntry } from "@/lib/model";
 import { useToast } from "@/hooks/use-toast";
 import ApiService from "@/api/apiService";

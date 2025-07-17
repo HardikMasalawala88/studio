@@ -13,7 +13,7 @@ import {
 
 import ApiService from "@/api/apiService";
 import { USER_ROLES } from "@/lib/constants";
-import { type AuthUser } from "@/lib/types";
+import { AuthUser } from "@/lib/model";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {

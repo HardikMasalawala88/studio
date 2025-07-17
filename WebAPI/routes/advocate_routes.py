@@ -51,7 +51,7 @@ async def add_client(user: User):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
-@router.put("/clients/{client_id}")
+@router.put("/update-client/{client_id}")
 async def update_client(client_id: str, updated_client: Client):
     try:
         object_id = ObjectId(client_id)
@@ -125,7 +125,7 @@ async def get_clients():
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
     
-@router.get("/clients/{client_id}", response_model=Client)
+@router.get("/clientById/{client_id}", response_model=Client)
 async def get_client_by_id(client_id: str):
     try:
         if not ObjectId.is_valid(client_id):
@@ -162,7 +162,7 @@ async def get_client_by_id(client_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
-# @router.delete("/clients/{client_id}")
+# @router.delete("/delete-client/{client_id}")
 # async def remove_client(client_id: str):
 #     try:
 #         object_id = ObjectId(client_id)
@@ -181,7 +181,7 @@ async def get_client_by_id(client_id: str):
 #     except Exception as e:
 #         raise HTTPException(status_code=500, detail=f"Deletion failed: {str(e)}")
 
-@router.put("/clients/{client_id}/status")
+@router.put("/client-status/{client_id}/status")
 async def update_client_status(client_id: str, is_active: Literal[True, False] = Body(...)):
     try:
         obj_id = ObjectId(client_id)
@@ -219,7 +219,7 @@ async def add_case(case: Case):
 
     return {"message": "Case created", "case_id": str(case_dict["_id"])}
 
-@router.put("/cases/{case_id}")
+@router.put("/update-case/{case_id}")
 async def update_case(case_id: str, case: Case):
     try:
         existing_case = await db.cases.find_one({"_id": ObjectId(case_id)})
@@ -297,7 +297,7 @@ async def list_cases():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch cases: {str(e)}")
 
-@router.get("/cases/{case_id}", response_model=Case)
+@router.get("/caseById/{case_id}", response_model=Case)
 async def get_case(case_id: str):
     try:
         case = await db.cases.find_one({"_id": ObjectId(case_id)})
@@ -317,7 +317,7 @@ async def get_case(case_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch case: {str(e)}")
 
-@router.delete("/cases/{case_id}")
+@router.delete("/delete-case/{case_id}")  
 async def remove_case(case_id: str):
     case = await db.cases.find_one({"_id": ObjectId(case_id)})
     if not case:

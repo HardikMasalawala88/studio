@@ -27,7 +27,7 @@ export default function EditCasePage() {
   const [error, setError] = useState<string | null>(null);
 
   const canEdit =
-    user?.role === USER_ROLES.SUPER_ADMIN ||
+    user?.role === USER_ROLES.ADMIN ||
     (user?.role === USER_ROLES.ADVOCATE && isSubscriptionActive);
 
   // useEffect(() => {
@@ -71,7 +71,7 @@ export default function EditCasePage() {
 
   if (loading || authLoading) {
     return (
-      <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.SUPER_ADMIN]}>
+      <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.ADMIN]}>
         <PageHeader title="Edit Case" />
         <div className="space-y-4">
           <Skeleton className="h-10 w-full" />
@@ -86,7 +86,7 @@ export default function EditCasePage() {
 
   if (error) {
     return (
-      <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.SUPER_ADMIN]}>
+      <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.ADMIN]}>
         <PageHeader title="Error" />
         <p>{error}</p>
         <Button onClick={() => router.push("/cases")} className="mt-4">
@@ -98,7 +98,7 @@ export default function EditCasePage() {
 
   if (!caseData) {
     return (
-      <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.SUPER_ADMIN]}>
+      <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.ADMIN]}>
         <PageHeader title="Edit Case" />
         <p>Case data could not be loaded.</p>
       </AppLayout>
@@ -106,7 +106,7 @@ export default function EditCasePage() {
   }
 
   return (
-    <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.SUPER_ADMIN]}>
+    <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.ADMIN]}>
       <PageHeader
         title="Edit Case"
         description={`Updating details for case: ${caseData.CaseTitle}`}

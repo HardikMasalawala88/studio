@@ -39,7 +39,7 @@ export default function DashboardPage() {
         return <AdvocateDashboard />;
       case USER_ROLES.CLIENT:
         return <ClientDashboard />;
-      case USER_ROLES.SUPER_ADMIN:
+      case USER_ROLES.ADMIN:
         return <SuperAdminDashboard />;
       default:
         return <p>Unknown user role. Please contact support.</p>;
@@ -47,7 +47,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.SUPER_ADMIN]}>
+    <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.ADMIN]}>
       {renderDashboardContent()}
     </AppLayout>
   );

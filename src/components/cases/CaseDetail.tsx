@@ -179,7 +179,7 @@ export function CaseDetail() {
   }
 
   const canEdit =
-    user?.role === USER_ROLES.ADVOCATE || user?.role === USER_ROLES.SUPER_ADMIN;
+    user?.role === USER_ROLES.ADVOCATE || user?.role === USER_ROLES.ADMIN;
 
   return (
     <div className="space-y-6">

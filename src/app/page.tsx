@@ -105,7 +105,7 @@ export default function LandingPage() {
               <FeatureCard
                 icon={<Users className="h-8 w-8" />}
                 title="Role-Based Access & Dashboards"
-                description="Tailored dashboards and permissions for Advocates, Clients, and SuperAdmins, ensuring secure and relevant information access."
+                description="Tailored dashboards and permissions for Advocates, Clients, and Admin, ensuring secure and relevant information access."
               />
               <FeatureCard
                 icon={<Zap className="h-8 w-8" />}

@@ -19,6 +19,8 @@ class RegisterFM(BaseModel):
     confirmPassword: str
     isActive: Optional[bool] = True
     advocate: Optional["Advocate"] = None
+    subscriptionPackageId: Optional[str] = None
+
     # confirmIndiaAdvocate: bool 
     # client: Optional["Client"] = None
     # userSubscriptions: List["UserSubscription"] = []

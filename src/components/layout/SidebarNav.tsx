@@ -73,8 +73,8 @@ export function SidebarNav() {
 
 
   const navItems: NavItem[] = [
-    { href: '/dashboard', label: 'Dashboard', icon: Home, roles: [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.SUPER_ADMIN] },
-    { href: '/cases', label: 'Cases', icon: Briefcase, roles: [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.SUPER_ADMIN] },
+    { href: '/dashboard', label: 'Dashboard', icon: Home, roles: [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.ADMIN] },
+    { href: '/cases', label: 'Cases', icon: Briefcase, roles: [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.ADMIN] },
     { href: '/clients', label: 'Clients', icon: Users2, roles: [USER_ROLES.ADVOCATE] },
     { href: '/daily-report', label: 'Daily Report', icon: FileText, roles: [USER_ROLES.ADVOCATE] },
     { 
@@ -85,8 +85,9 @@ export function SidebarNav() {
       tag: subscriptionTag,
       tagVariant: subscriptionTagVariant
     },
-    { href: '/admin/users', label: 'User Management', icon: Users, roles: [USER_ROLES.SUPER_ADMIN] },
-    { href: '/admin/subscriptions', label: 'Subscription Settings', icon: SettingsIcon, roles: [USER_ROLES.SUPER_ADMIN] },
+    { href: '/admin/users', label: 'User Management', icon: Users, roles: [USER_ROLES.ADMIN] },
+    { href: '/admin/subscriptions', label: 'Subscription Settings', icon: SettingsIcon, roles: [USER_ROLES.ADMIN] },
+    { href: '/admin/paymentGateway', label: 'Paymeny GateWay Settings', icon: SettingsIcon, roles: [USER_ROLES.ADMIN] },
   ];
 
 

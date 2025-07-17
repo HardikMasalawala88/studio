@@ -64,7 +64,7 @@ const formSchema = z
     advocate: z
       .object({
         advocateEnrollmentNumber: z.string(),
-        AdvocateUniqueNumber: z.string(),
+        // AdvocateUniqueNumber: z.string(),
         Specialization: z.string(),
       })
       .optional(),
@@ -76,7 +76,7 @@ const formSchema = z
   .superRefine((data, ctx) => {
     if (data.role === USER_ROLES.ADVOCATE) {
       const enrollmentNumber = data.advocate?.advocateEnrollmentNumber;
-      const uniqueNumber = data.advocate?.AdvocateUniqueNumber;
+      // const uniqueNumber = data.advocate?.AdvocateUniqueNumber;
       const specialization = data.advocate?.Specialization;
 
       // Required field validations
@@ -98,13 +98,13 @@ const formSchema = z
         }
       }
 
-      if (!data.advocate?.AdvocateUniqueNumber) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Unique advocate number is required.",
-          path: ["advocate", "AdvocateUniqueNumber"],
-        });
-      }
+      // if (!data.advocate?.AdvocateUniqueNumber) {
+      //   ctx.addIssue({
+      //     code: z.ZodIssueCode.custom,
+      //     message: "Unique advocate number is required.",
+      //     path: ["advocate", "AdvocateUniqueNumber"],
+      //   });
+      // }
       if (!data.advocate?.Specialization) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -131,7 +131,7 @@ export function SignupForm() {
       role: USER_ROLES.ADVOCATE,
       advocate: {
         advocateEnrollmentNumber: "",
-        AdvocateUniqueNumber: "",
+        // AdvocateUniqueNumber: "",
         Specialization: "",
       },
     },
@@ -326,7 +326,7 @@ export function SignupForm() {
                     </FormItem>
                   )}
                 />
-                <FormField
+                {/* <FormField
                   control={form.control}
                   name="advocate.AdvocateUniqueNumber"
                   render={({ field }) => (
@@ -338,7 +338,7 @@ export function SignupForm() {
                       <FormMessage />
                     </FormItem>
                   )}
-                />
+                /> */}
                 <FormField
                   control={form.control}
                   name="advocate.Specialization"

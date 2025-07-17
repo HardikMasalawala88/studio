@@ -10,7 +10,7 @@ let MOCK_USERS_DB: AuthUser[] = [
     subscriptionPlanId: SUBSCRIPTION_PLAN_IDS.YEARLY, subscriptionExpiryDate: addMonths(new Date(), 10), lastPaymentAmount: 800, lastPaymentCurrency: 'INR', lastPaymentDate: new Date(new Date().setMonth(new Date().getMonth()-2))
   },
   { uid: 'client1', firstName: 'Bob', lastName: 'Client', email: 'client@example.com', role: USER_ROLES.CLIENT, phone: '0987654321', createdOn: new Date('2023-02-20'), isActive: true },
-  { uid: 'admin1', firstName: 'Eve', lastName: 'Admin', email: 'admin@example.com', role: USER_ROLES.SUPER_ADMIN, phone: '1122334455', createdOn: new Date('2023-01-01'), isActive: true },
+  { uid: 'admin1', firstName: 'Eve', lastName: 'Admin', email: 'admin@example.com', role: USER_ROLES.ADMIN, phone: '1122334455', createdOn: new Date('2023-01-01'), isActive: true },
   {
     uid: 'advocate-other', firstName: 'Charles', lastName: 'Xavier', email: 'cx@example.com', role: USER_ROLES.ADVOCATE, createdOn: new Date('2023-03-10'), advocateEnrollmentNumber: 'DEL/456/2010', isActive: true,
     subscriptionPlanId: SUBSCRIPTION_PLAN_IDS.FREE_TRIAL, subscriptionExpiryDate: addMonths(new Date(), -2) // Expired trial
@@ -125,7 +125,7 @@ export async function deactivateUser(uid: string): Promise<AuthUser | undefined>
 }
 
 export async function getAssignableRoles(): Promise<UserRole[]> {
-    return [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.SUPER_ADMIN];
+    return [USER_ROLES.ADVOCATE, USER_ROLES.CLIENT, USER_ROLES.ADMIN];
 }
 
 export async function updateAdvocateSubscription(userId: string, planId: SubscriptionPlanId): Promise<AuthUser | undefined> {

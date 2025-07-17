@@ -2,9 +2,9 @@
 
 import type { AuthUser } from "@/lib/types";
 import { useEffect, useState, useMemo } from "react";
-import { getUsers, deleteUser as deleteUserService } from "@/lib/userService";
+// import { getUsers, deleteUser as deleteUserService } from "@/lib/userService";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Edit, Trash2, Search, Filter } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Search, Filter, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_USER_ROLES, UserRole } from "@/lib/constants";
@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { UserForm } from "./UserForm";
 import { Skeleton } from "@/components/ui/skeleton";
+import ApiService from "@/api/apiService";
 
 export function UserList() {
   const { toast } = useToast();
@@ -32,40 +33,85 @@ export function UserList() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
-  
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AuthUser | undefined>(undefined);
+  const [subscriptionFilter, setSubscriptionFilter] = useState("all");
+  const [subscriptionMap, setSubscriptionMap] = useState<Record<string, boolean>>({});
+
+  async function loadUsers() {
+    setLoading(true);
+    const response = await ApiService.listUsers();
+    const fetchedUsers = response.data.map((user: any) => ({
+      uid: user.uid || user._id || "",
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      phone: user.phone || "",
+      isActive: user.isActive ?? true,
+      createdOn: user.createdAt || user.createdOn || null,
+    }));
+    setUsers(fetchedUsers);
+    setLoading(false);
+  }
+
+  const loadUserSubscriptions = async () => {
+    try {
+      const { data } = await ApiService.listUserSubscriptions(); // 👈 one call for all
+      const map: Record<string, boolean> = {};
+      data.forEach((sub: any) => {
+        map[sub.userId] = sub.isActive === true;
+      });
+      setSubscriptionMap(map);
+    } catch (error) {
+      console.error("Failed to load user subscriptions", error);
+    }
+  };
+
 
   useEffect(() => {
-    async function loadUsers() {
-      setLoading(true);
-      const fetchedUsers = await getUsers();
-      setUsers(fetchedUsers);
-      setLoading(false);
-    }
+    loadUserSubscriptions();
     loadUsers();
   }, []);
 
+  // const filteredUsers = useMemo(() => {
+  //   return users
+  //     .filter(u =>
+  //       u.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //       u.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //       u.email.toLowerCase().includes(searchTerm.toLowerCase())
+  //     )
+  //     .filter(u => roleFilter === "all" || u.role === roleFilter);
+  // }, [users, searchTerm, roleFilter]);
+
   const filteredUsers = useMemo(() => {
     return users
-      .filter(u => 
+      .filter(u =>
         u.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.email.toLowerCase().includes(searchTerm.toLowerCase())
       )
-      .filter(u => roleFilter === "all" || u.role === roleFilter);
-  }, [users, searchTerm, roleFilter]);
+      .filter(u => roleFilter === "all" || u.role === roleFilter)
+      .filter(user => {
+        if (subscriptionFilter === "all") return true;
+        if (user.role !== "Advocate") return false; // 👈 only Advocates are filtered
+        const isActive = subscriptionMap[user.uid];
+        return subscriptionFilter === "active" ? isActive === true : isActive === false;
+      });
+  }, [users, searchTerm, roleFilter, subscriptionFilter]);
 
   const handleDeleteUser = async (userId: string) => {
-    const success = await deleteUserService(userId);
+    const success = await ApiService.deleteUser(userId);
     if (success) {
       setUsers(prevUsers => prevUsers.filter(u => u.uid !== userId));
+      loadUsers();
       toast({ title: "User Deleted", description: "The user has been successfully deleted." });
     } else {
       toast({ title: "Error", description: "Failed to delete user.", variant: "destructive" });
     }
   };
-  
+
   const handleOpenForm = (user?: AuthUser) => {
     setEditingUser(user);
     setIsFormOpen(true);
@@ -83,13 +129,13 @@ export function UserList() {
       setUsers(prev => [savedUser, ...prev]);
     }
   };
-  
+
   if (loading) {
-     return (
+    return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-           <Skeleton className="h-10 w-1/4" />
-           <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-1/4" />
+          <Skeleton className="h-10 w-24" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <Skeleton className="h-10 w-full" />
@@ -116,6 +162,22 @@ export function UserList() {
           />
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+          <Select
+            value={subscriptionFilter}
+            onValueChange={(value) => setSubscriptionFilter(value)}
+          >
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="Filter by subscription" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Subscriptions</SelectItem>
+              <SelectItem value="active">Active Subscription</SelectItem>
+              <SelectItem value="inactive">Inactive Subscription</SelectItem>
+            </SelectContent>
+          </Select>
+
+
           <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as UserRole | "all")}>
             <SelectTrigger className="w-full sm:w-[180px]">
               <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -128,24 +190,24 @@ export function UserList() {
               ))}
             </SelectContent>
           </Select>
-           <Button onClick={() => handleOpenForm()} className="w-full md:w-auto">
+          {/* <Button onClick={() => handleOpenForm()} className="w-full md:w-auto">
             <PlusCircle className="mr-2 h-4 w-4" /> Add User
-          </Button>
+          </Button> */}
         </div>
       </div>
 
       {filteredUsers.length === 0 ? (
-         <div className="text-center py-12">
+        <div className="text-center py-12">
           <Users className="mx-auto h-12 w-12 text-muted-foreground" />
           <h3 className="mt-2 text-xl font-semibold">No Users Found</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             {users.length === 0 ? "There are no users in the system yet." : "Try adjusting your search or filters."}
           </p>
-          {users.length === 0 && (
+          {/* {users.length === 0 && (
             <Button className="mt-6" onClick={() => handleOpenForm()}>
               <PlusCircle className="mr-2 h-4 w-4" /> Add First User
             </Button>
-          )}
+          )} */}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -165,7 +227,7 @@ export function UserList() {
                 <TableRow key={user.uid}>
                   <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
                   <TableCell>{user.email}</TableCell>
-                  <TableCell><Badge variant={user.role === "SuperAdmin" ? "destructive" : "secondary"}>{user.role}</Badge></TableCell>
+                  <TableCell><Badge variant={user.role === "Admin" ? "destructive" : "secondary"}>{user.role}</Badge></TableCell>
                   <TableCell>{user.phone || 'N/A'}</TableCell>
                   <TableCell>{user.createdOn ? format(new Date(user.createdOn), "PP") : 'N/A'}</TableCell>
                   <TableCell className="text-right">
@@ -175,7 +237,7 @@ export function UserList() {
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" title="Delete User" className="text-destructive hover:text-destructive" disabled={user.role === "SuperAdmin"}> {/* Prevent deleting SuperAdmin for safety */}
+                          <Button variant="ghost" size="icon" title="Delete User" className="text-destructive hover:text-destructive" disabled={user.role === "Admin"}> {/* Prevent deleting Admin for safety */}
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
@@ -202,9 +264,9 @@ export function UserList() {
           </Table>
         </div>
       )}
-      <UserForm 
-        isOpen={isFormOpen} 
-        onClose={handleCloseForm} 
+      <UserForm
+        isOpen={isFormOpen}
+        onClose={handleCloseForm}
         initialData={editingUser}
         onUserSaved={handleUserSaved}
       />

@@ -16,7 +16,7 @@ export default function NewCasePage() {
   const { user, isSubscriptionActive, loading } = useAuth();
   const router = useRouter();
 
-  const canCreate = user?.role === USER_ROLES.SUPER_ADMIN || (user?.role === USER_ROLES.ADVOCATE && isSubscriptionActive);
+  const canCreate = user?.role === USER_ROLES.ADMIN || (user?.role === USER_ROLES.ADVOCATE && isSubscriptionActive);
 
   useEffect(() => {
     if (!loading && user?.role === USER_ROLES.ADVOCATE && !isSubscriptionActive) {
@@ -28,7 +28,7 @@ export default function NewCasePage() {
   if (loading) {
     // You might want a skeleton loader here
     return (
-        <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.SUPER_ADMIN]}>
+        <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.ADMIN]}>
             <PageHeader title="Create New Case" />
             <p>Loading...</p>
         </AppLayout>
@@ -36,7 +36,7 @@ export default function NewCasePage() {
   }
   
   return (
-    <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.SUPER_ADMIN]}>
+    <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.ADMIN]}>
       <PageHeader title="Create New Case" description="Fill in the details to register a new case." />
       {/* {user?.role === USER_ROLES.ADVOCATE && !isSubscriptionActive && (
          <Alert variant="destructive" className="mb-6">

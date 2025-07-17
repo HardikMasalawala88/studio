@@ -6,7 +6,7 @@ import { USER_ROLES } from '@/lib/constants';
 
 export default function AdminSubscriptionSettingsPage() {
   return (
-    <AppLayout allowedRoles={[USER_ROLES.SUPER_ADMIN]}>
+    <AppLayout allowedRoles={[USER_ROLES.ADMIN]}>
       <PageHeader title="Subscription Plan Settings" description="Manage subscription plan names, descriptions, prices, and durations." />
       <SubscriptionPlanList />
     </AppLayout>

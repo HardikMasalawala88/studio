@@ -76,7 +76,9 @@ export function HearingReport() {
           new Set(
             todaysCases
               .map((c) => c.oppositeAdvocate)
-              .filter((id) => !!id && typeof id === "string")
+              .filter(
+                (val) => !!val && /^[0-9a-fA-F]{24}$/.test(val) // ✅ only 24-char hex strings
+              )
           )
         );
 
@@ -85,7 +87,7 @@ export function HearingReport() {
         await Promise.all(
           uniqueOppAdvocateIds.map(async (advId) => {
             try {
-              const advRes = await ApiService.getAdvocate(advId); // 👈 you must have this API
+              const advRes = await ApiService.getAdvocate(advId);
               const advData = advRes.data;
               const fullName = `${advData?.firstName || ""} ${advData?.lastName || ""}`.trim();
               advocateNameMap[advId] = fullName || "Unknown Advocate";
@@ -183,8 +185,8 @@ export function HearingReport() {
       </html>
     `);
     frameDoc.close();
-          // <title>Daily Hearing Report - ${format(today, "PPP")}</title>
-          // <h4 style="text-align:center; margin-top: 0;"></h4>
+    // <title>Daily Hearing Report - ${format(today, "PPP")}</title>
+    // <h4 style="text-align:center; margin-top: 0;"></h4>
 
     setTimeout(() => {
       iframe.contentWindow?.focus();
@@ -243,10 +245,10 @@ export function HearingReport() {
           <table className="hidden print:table w-full printable-report-table">
             <thead>
               <tr>
-                <th>Prev. Date <br/> Remark</th>
-                <th>Case No. <br/> Court Name</th>
-                <th>Applicant <br/> Opponent</th>
-                <th>Stage status <br/> Opp. Advocate</th>
+                <th>Prev. Date <br /> Remark</th>
+                <th>Case No. <br /> Court Name</th>
+                <th>Applicant <br /> Opponent</th>
+                <th>Stage status <br /> Opp. Advocate</th>
                 <th>Next Hearing / Notes</th>
               </tr>
             </thead>
@@ -256,7 +258,10 @@ export function HearingReport() {
                   <td>{format(new Date(hearing.hearingDate), "dd-MM-yyyy")}<br /><small>{hearing.caseRemark}</small></td>
                   <td>{hearing.caseNumber}<br /><small>{hearing.courtLocation}</small></td>
                   <td>{clientNames[hearing.clientId] || "Unknown"}<br /><small>{hearing.opponant}</small></td>
-                  <td>{hearing.caseStatus}<br /><small>{oppAdvocateNames[hearing.oppositeAdvocate] || "—"}</small></td>
+                  <td>{hearing.caseStatus}<br /><small>{/^[0-9a-fA-F]{24}$/.test(hearing.oppositeAdvocate)
+                    ? oppAdvocateNames[hearing.oppositeAdvocate] || "Unknown Advocate"
+                    : hearing.oppositeAdvocate || "—"
+                  }</small></td>
                   <td></td>
                   {/* <td>
                     {hearing.hearingHistory
@@ -331,7 +336,7 @@ export function HearingReport() {
           caseToUpdate={selectedCaseForUpdate}
           currentUser={{
             ...user,
-            createdOn: new Date(user.createdOn),
+            // createdOn: new Date(user.createdOn),
             role: user.role as UserRole,
           }}
           onHearingUpdated={handleHearingUpdated}

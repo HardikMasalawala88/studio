@@ -6,8 +6,6 @@ import * as z from "zod";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CalendarIcon, Loader2 } from "lucide-react";
-import { format } from "date-fns";
-
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -43,9 +41,10 @@ import type { Case, CaseDocument, ClientData } from "@/lib/model";
 import ApiService from "@/api/apiService";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { formatInTimeZone } from "date-fns-tz";
+import { format } from "date-fns";
 import { ClientForm } from "@/components/clients/ClientForm";
 import CaseStatusAutocomplete from "./CaseStatusAutocomplete";
+import OppositeAdvocateAutocomplete from "./OppositeAdvocateAutocomplete";
 
 const formSchema = z.object({
   id: z.string().optional(),
@@ -224,12 +223,8 @@ export function CaseForm({ initialData }: CaseFormProps) {
       caseTitle: initialData?.caseTitle ?? "",
       caseDetail: initialData?.caseDetail ?? "",
       caseNumber: initialData?.caseNumber ?? "",
-      hearingDate: initialData?.hearingDate
-        ? new Date(initialData.hearingDate)
-        : new Date(),
-      filingDate: initialData?.filingDate
-        ? new Date(initialData.filingDate)
-        : new Date(),
+      hearingDate: new Date(initialData?.hearingDate ?? new Date()),
+      filingDate: new Date(initialData?.filingDate ?? new Date()),
       courtLocation: initialData?.courtLocation ?? "",
       caseParentId: initialData?.caseParentId ?? "",
       caseStatus:
@@ -334,13 +329,9 @@ export function CaseForm({ initialData }: CaseFormProps) {
     return uploaded;
   }
 
-  const handleRemoveFile = (indexToRemove: number) => {
-    if (!selectedFiles) return;
-
-    const updatedFiles = [...selectedFiles].filter((_, index) => index !== indexToRemove);
-
-    setSelectedFiles(updatedFiles.length > 0 ? (updatedFiles as any) : null);
-  };
+  function toUtcMidnight(date: Date): Date {
+    return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
@@ -350,21 +341,13 @@ export function CaseForm({ initialData }: CaseFormProps) {
       newUploadedDocs = await uploadFiles(selectedFiles); // will update Case + CaseDocument tables
     }
 
-    const selectedHearingDate = values.hearingDate
-      ? new Date(values.hearingDate)  // use full date-time as is
-      : initialData?.hearingDate;
-
-    const selectedFilingDate = values.filingDate
-      ? new Date(values.filingDate)
-      : initialData?.filingDate;
-
     const payload = {
       ...(initialData?.id ? { id: initialData.id } : { id: "" }),
       caseTitle: values.caseTitle,
       caseDetail: values.caseDetail,
       caseNumber: values.caseNumber,
-      hearingDate: selectedHearingDate,
-      filingDate: selectedFilingDate,
+      hearingDate: toUtcMidnight(values.hearingDate),
+      filingDate: toUtcMidnight(values.filingDate),
       courtLocation: values.courtLocation,
       caseParentId: values.caseParentId || "",
       caseStatus: values.caseStatus,
@@ -520,13 +503,11 @@ export function CaseForm({ initialData }: CaseFormProps) {
                         )}
                         disabled={isLoading || isEditMode}
                       >
-                        {field.value
-                          ? formatInTimeZone(
-                            field.value,
-                            "Asia/Kolkata",
-                            "dd MMM yyyy"
-                          ) // ✅ IST format
-                          : "Pick a date"}
+                        {field.value ? (
+                          format(field.value, "PPP")
+                        ) : (
+                          <span>Pick next date</span>
+                        )}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
                     </FormControl>
@@ -562,13 +543,11 @@ export function CaseForm({ initialData }: CaseFormProps) {
                         )}
                         disabled={isLoading || isEditMode}
                       >
-                        {field.value
-                          ? formatInTimeZone(
-                            field.value,
-                            "Asia/Kolkata",
-                            "dd MMM yyyy"
-                          ) // ✅ IST format
-                          : "Pick a date"}
+                        {field.value ? (
+                          format(field.value, "PPP")
+                        ) : (
+                          <span>Pick next date</span>
+                        )}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
                     </FormControl>
@@ -815,30 +794,12 @@ export function CaseForm({ initialData }: CaseFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Opposite Advocate*</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  disabled={isLoading || advocates.length === 0}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="--Select opposite advocate--" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {advocates.length === 0 ? (
-                      <div className="p-2 text-muted-foreground text-sm">
-                        No other advocates found
-                      </div>
-                    ) : (
-                      advocates.map((adv) => (
-                        <SelectItem key={adv.id} value={adv.id}>
-                          {adv.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <OppositeAdvocateAutocomplete
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={advocates.map((a) => a.name)} // assuming advocate list has `.name`
+                  disabled={isLoading}
+                />
                 <FormMessage />
               </FormItem>
             )}
