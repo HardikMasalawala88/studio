@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const allUsers = await getUsers(); 
       const foundUser = allUsers.find(u => u.email === email);
-      
+      debugger
       if (foundUser && foundUser.isActive) {
         setUser(foundUser);
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(foundUser));
