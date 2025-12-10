@@ -568,7 +568,7 @@ export function CaseForm({ initialData }: CaseFormProps) {
           />
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
+        {/* <div className="grid md:grid-cols-2 gap-8">
           <FormField
             control={form.control}
             name="caseStatus"
@@ -581,6 +581,36 @@ export function CaseForm({ initialData }: CaseFormProps) {
                   options={statuses}
                   disabled={isLoading}
                 />
+                <FormMessage />
+              </FormItem>
+            )}
+          /> */}
+
+        <div className="grid md:grid-cols-2 gap-8">
+          <FormField
+            control={form.control}
+            name="caseStatus"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Case Status</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  disabled={isLoading}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {ALL_CASE_STATUSES.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
