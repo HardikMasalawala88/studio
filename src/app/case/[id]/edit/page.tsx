@@ -109,7 +109,7 @@ export default function EditCasePage() {
     <AppLayout allowedRoles={[USER_ROLES.ADVOCATE, USER_ROLES.ADMIN]}>
       <PageHeader
         title="Edit Case"
-        description={`Updating details for case: ${caseData.CaseTitle}`}
+        description={`Updating details for case: ${caseData.caseTitle}`}
       />
       {/* {user?.role === USER_ROLES.ADVOCATE && !isSubscriptionActive && (
         <Alert variant="destructive" className="mb-6">

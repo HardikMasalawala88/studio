@@ -669,6 +669,41 @@ export function CaseForm({ initialData }: CaseFormProps) {
         <div className="grid md:grid-cols-2 gap-8">
           <FormField
             control={form.control}
+            name="opponant"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Opponent*</FormLabel>
+                <FormControl>
+                  <Input placeholder="Opponent name" {...field} disabled={isLoading} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="oppositeAdvocate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Opposite Advocate*</FormLabel>
+                <OppositeAdvocateAutocomplete
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={advocates.map((a) => a.name)} // assuming advocate list has `.name`
+                  disabled={isLoading}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        {/* <div className="grid md:grid-cols-2 gap-8">
+        </div> */}
+
+         <FormField
+            control={form.control}
             name="clientId"
             render={({ field }) => (
               <FormItem>
@@ -720,122 +755,6 @@ export function CaseForm({ initialData }: CaseFormProps) {
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="caseDocuments"
-            render={() => (
-              <FormItem>
-                <FormLabel>Case Document</FormLabel>
-                <FormControl>
-                  <div className="space-y-2">
-                    {/* File input */}
-                    <div className="relative">
-                      <Input
-                        type="file"
-                        multiple
-                        onChange={handleFileChange}
-                        disabled={isLoading}
-                        ref={fileInputRef}
-                        className="pr-10" // Leave space for the ❌ button
-                      />
-                      {selectedFiles && selectedFiles.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedFiles(null);
-                            if (fileInputRef.current) {
-                              fileInputRef.current.value = "";
-                            }
-                          }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-xl text-gray-500 hover:text-red-600 font-bold"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Selected but not yet uploaded */}
-                    {selectedFiles && selectedFiles.length > 0 && (
-                      <div className="text-sm text-green-700">
-                        <p className="font-medium">Documents Uploaded</p>
-                        {/* <ul className="space-y-1">
-                          {[...selectedFiles].map((file, index) => (
-                            <li key={index} className="flex items-center justify-between bg-green-50 p-2 rounded shadow-sm">
-                              <span className="italic text-green-900">{file.name}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveFile(index)}
-                                className="ml-3 text-red-600 hover:text-red-800 font-bold"
-                              >
-                                ✖
-                              </button>
-                            </li>
-                          ))}
-                        </ul> */}
-                      </div>
-                    )}
-
-                    {/* Already uploaded */}
-                    {/* {uploadedFiles && uploadedFiles.length > 0 && (
-                      <div className="text-sm text-green-700">
-                        <p className="font-medium">Documents Uploaded</p>
-                        <ul className="list-disc ml-5">
-                          {uploadedFiles.map((file, index) => (
-                            <li key={index}>
-                              <a
-                                href={file.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="underline text-blue-600"
-                              >
-                                {file.fileName}
-                              </a>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )} */}
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-8">
-          <FormField
-            control={form.control}
-            name="opponant"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Opponent*</FormLabel>
-                <FormControl>
-                  <Input placeholder="Opponent name" {...field} disabled={isLoading} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="oppositeAdvocate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Opposite Advocate*</FormLabel>
-                <OppositeAdvocateAutocomplete
-                  value={field.value}
-                  onChange={field.onChange}
-                  options={advocates.map((a) => a.name)} // assuming advocate list has `.name`
-                  disabled={isLoading}
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-        </div>
         <FormField
           control={form.control}
           name="caseRemark"
